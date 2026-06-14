@@ -4,3 +4,7 @@ do this command after installing ydotool and restart (wayland only)
 systemctl --user enable --now ydotool.service
 ```
 ## use "xdotool" for x11
+
+
+## windows:
+autohotkey
