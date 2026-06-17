@@ -109,9 +109,9 @@ Requires=mnt-nos.mount mnt-backup.mount
 RequiresMountsFor=/mnt/nos /mnt/backup
 
 [Service]
-Type=forking
+Type=simple
 User=taxin
-ExecStart=/usr/bin/qbittorrent-nox -d --webui-port=8080
+ExecStart=/usr/bin/qbittorrent-nox --webui-port=8080
 Restart=on-failure
 
 [Install]
