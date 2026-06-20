@@ -36,6 +36,11 @@ require_root() {
   fi
 }
 
+# ---------- defaults ----------
+# Default ZeroTier network ID — used when no ID is passed as an argument
+# and no interactive terminal is available to prompt for one.
+DEFAULT_NETWORK_ID="633e31d8a2e3401d"
+
 # ---------- arg parsing ----------
 NETWORK_ID=""
 JOIN=true
@@ -45,6 +50,10 @@ for arg in "$@"; do
     *) NETWORK_ID="$arg" ;;
   esac
 done
+
+if [[ -z "$NETWORK_ID" && "$JOIN" == true ]]; then
+  NETWORK_ID="$DEFAULT_NETWORK_ID"
+fi
 
 require_root "$@"
 
@@ -123,13 +132,24 @@ enable_services() {
   systemctl enable --now zerotier-one.service
 
   log "Enabling and starting SSH..."
-  # service unit name differs slightly across distros
-  if systemctl list-unit-files | grep -q '^sshd.service'; then
+  # Capture the full unit list first (avoids 'grep -q' closing the pipe early
+  # and crashing systemctl's table printer with a broken-pipe error).
+  local units
+  units="$(systemctl list-unit-files --no-legend --no-pager 2>/dev/null || true)"
+
+  if echo "$units" | grep -q '^sshd\.service'; then
     systemctl enable --now sshd.service
-  elif systemctl list-unit-files | grep -q '^ssh.service'; then
+  elif echo "$units" | grep -q '^ssh\.service'; then
     systemctl enable --now ssh.service
   else
-    warn "Could not find sshd.service or ssh.service unit — check your openssh install."
+    # Last resort: just try both directly, suppressing noise.
+    if systemctl enable --now ssh.service 2>/dev/null; then
+      :
+    elif systemctl enable --now sshd.service 2>/dev/null; then
+      :
+    else
+      warn "Could not find sshd.service or ssh.service unit — check your openssh install."
+    fi
   fi
   ok "Services enabled."
 }
@@ -162,12 +182,28 @@ join_network() {
 
   if [[ -z "$NETWORK_ID" ]]; then
     echo
-    read -rp "Enter your ZeroTier Network ID to join (leave blank to skip): " NETWORK_ID
+    if [[ -r /dev/tty ]]; then
+      # Read from the controlling terminal directly. This is required because
+      # when this script is run as `curl ... | sudo bash`, stdin is the pipe
+      # carrying the script's own source — a plain `read` would consume
+      # leftover script text instead of waiting for real keyboard input.
+      read -rp "Enter your ZeroTier Network ID to join (leave blank to skip): " NETWORK_ID < /dev/tty
+    else
+      warn "No interactive terminal available to prompt for a Network ID."
+      warn "Re-run with the ID as an argument instead, e.g.:"
+      warn "  curl -fsSL <script-url> | sudo bash -s -- <NETWORK_ID>"
+    fi
   fi
 
   if [[ -z "$NETWORK_ID" ]]; then
     warn "No network ID provided — skipping join. Join later with:"
     warn "  sudo zerotier-cli join <NETWORK_ID>"
+    return
+  fi
+
+  if ! [[ "$NETWORK_ID" =~ ^[0-9a-fA-F]{16}$ ]]; then
+    err "'$NETWORK_ID' doesn't look like a valid ZeroTier Network ID (should be 16 hex characters)."
+    err "Skipping join — run later with: sudo zerotier-cli join <NETWORK_ID>"
     return
   fi
 
