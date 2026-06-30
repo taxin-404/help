@@ -11,8 +11,9 @@
 #   2. Installs zerotier-one + openssh
 #   3. Enables + starts zerotier-one.service and sshd.service
 #   4. Optionally joins a ZeroTier network (pass network ID as $1, or it'll prompt)
-#   5. Opens the firewall for SSH (22) and ZeroTier (9993/udp) if a known
-#      firewall manager is active (ufw / firewalld / iptables-via-nft skipped safely)
+#   5. Opens the firewall for SSH (22) and ZeroTier (9993/udp) via:
+#        - ufw          (Ubuntu/Mint, if installed)
+#        - firewalld    (Fedora/RHEL, if installed)
 #   6. Prints the ZeroTier node ID + join status + local IP info at the end
 #
 # Usage:
@@ -37,8 +38,6 @@ require_root() {
 }
 
 # ---------- defaults ----------
-# Default ZeroTier network ID — used when no ID is passed as an argument
-# and no interactive terminal is available to prompt for one.
 DEFAULT_NETWORK_ID="633e31d8a2e3401d"
 
 # ---------- arg parsing ----------
@@ -59,13 +58,6 @@ require_root "$@"
 
 # ---------- distro detection ----------
 detect_distro() {
-  if [[ -f /etc/os-release ]]; then
-    . /etc/os-release
-    ID_LIKE_LOWER="${ID_LIKE:-} ${ID:-}"
-  else
-    ID_LIKE_LOWER=""
-  fi
-
   if command -v pacman &>/dev/null; then
     echo "arch"
   elif command -v apt-get &>/dev/null; then
@@ -92,8 +84,13 @@ fi
 install_packages() {
   case "$DISTRO" in
     arch)
-      log "Updating package database (pacman -Sy)..."
-      pacman -Sy --noconfirm
+      # IMPORTANT: plain `pacman -Sy` followed by a later `pacman -S` is the
+      # classic "partial upgrade" foot-gun on Arch — it can pull in a package
+      # built against newer libs than what's currently installed, breaking
+      # the system. Always sync AND upgrade together (-Syu) before installing
+      # anything new.
+      log "Syncing and upgrading package database (pacman -Syu)..."
+      pacman -Syu --noconfirm
       log "Installing zerotier-one and openssh..."
       pacman -S --needed --noconfirm zerotier-one openssh
       ;;
@@ -132,8 +129,6 @@ enable_services() {
   systemctl enable --now zerotier-one.service
 
   log "Enabling and starting SSH..."
-  # Capture the full unit list first (avoids 'grep -q' closing the pipe early
-  # and crashing systemctl's table printer with a broken-pipe error).
   local units
   units="$(systemctl list-unit-files --no-legend --no-pager 2>/dev/null || true)"
 
@@ -142,7 +137,6 @@ enable_services() {
   elif echo "$units" | grep -q '^ssh\.service'; then
     systemctl enable --now ssh.service
   else
-    # Last resort: just try both directly, suppressing noise.
     if systemctl enable --now ssh.service 2>/dev/null; then
       :
     elif systemctl enable --now sshd.service 2>/dev/null; then
@@ -155,21 +149,43 @@ enable_services() {
 }
 
 # ---------- firewall ----------
+# Handles the two managed firewalls relevant to our "big three" distros:
+#   - ufw        -> default on Ubuntu/Mint (often installed but inactive)
+#   - firewalld  -> default + active out-of-the-box on Fedora/RHEL
 configure_firewall() {
-  if command -v ufw &>/dev/null && ufw status | grep -qi active; then
-    log "ufw detected and active — opening ports 22/tcp and 9993/udp..."
-    ufw allow 22/tcp
-    ufw allow 9993/udp
-    ok "ufw rules added."
-  elif command -v firewall-cmd &>/dev/null && systemctl is-active --quiet firewalld; then
-    log "firewalld detected and active — opening ports 22/tcp and 9993/udp..."
-    firewall-cmd --permanent --add-service=ssh
-    firewall-cmd --permanent --add-port=9993/udp
-    firewall-cmd --reload
-    ok "firewalld rules added."
-  else
-    warn "No active ufw/firewalld detected — skipping firewall changes."
-    warn "If you use a custom iptables/nftables setup, manually allow tcp/22 and udp/9993."
+  local handled=false
+
+  if command -v ufw &>/dev/null; then
+    if ufw status | head -n1 | grep -qi "Status: active"; then
+      log "ufw is active — opening ports 22/tcp and 9993/udp..."
+      ufw allow 22/tcp comment 'SSH'
+      ufw allow 9993/udp comment 'ZeroTier'
+      ok "ufw rules added (idempotent — safe to re-run)."
+    else
+      ok "ufw is installed but inactive — no rules needed, traffic isn't being filtered."
+    fi
+    handled=true
+  fi
+
+  if command -v firewall-cmd &>/dev/null; then
+    if [[ "$(firewall-cmd --state 2>/dev/null)" == "running" ]]; then
+      log "firewalld is active — opening ports 22/tcp and 9993/udp..."
+      firewall-cmd --permanent --add-service=ssh
+      firewall-cmd --permanent --add-port=9993/udp
+      if firewall-cmd --reload; then
+        ok "firewalld rules added and reloaded."
+      else
+        err "firewalld reload failed — rules were staged but not applied. Check 'firewall-cmd --get-active-zones'."
+      fi
+    else
+      ok "firewalld is installed but not running — no rules needed, traffic isn't being filtered."
+    fi
+    handled=true
+  fi
+
+  if [[ "$handled" == false ]]; then
+    warn "Neither ufw nor firewalld is installed — nothing to configure."
+    warn "Ports should already be reachable unless something else is filtering traffic."
   fi
 }
 
@@ -183,10 +199,6 @@ join_network() {
   if [[ -z "$NETWORK_ID" ]]; then
     echo
     if [[ -r /dev/tty ]]; then
-      # Read from the controlling terminal directly. This is required because
-      # when this script is run as `curl ... | sudo bash`, stdin is the pipe
-      # carrying the script's own source — a plain `read` would consume
-      # leftover script text instead of waiting for real keyboard input.
       read -rp "Enter your ZeroTier Network ID to join (leave blank to skip): " NETWORK_ID < /dev/tty
     else
       warn "No interactive terminal available to prompt for a Network ID."
