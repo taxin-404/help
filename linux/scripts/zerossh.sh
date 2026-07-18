@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# setup-zerotier-ssh.sh
+# zerossh.sh
 # Installs and configures ZeroTier + OpenSSH on the "big three" Linux families:
 #   - Arch / Arch-based   (pacman)   -> Omarchy, Arch, Manjaro, CachyOS, EndeavourOS...
 #   - Debian / Ubuntu     (apt)      -> Debian, Ubuntu, Mint, Raspberry Pi OS...
@@ -10,16 +10,17 @@
 #   1. Detects the distro family
 #   2. Installs zerotier-one + openssh
 #   3. Enables + starts zerotier-one.service and sshd.service
-#   4. Optionally joins a ZeroTier network (pass network ID as $1, or it'll prompt)
+#   4. Joins a ZeroTier network: uses $1 if given, otherwise falls back to the
+#      built-in DEFAULT_NETWORK_ID below (pass --no-join to skip joining entirely)
 #   5. Opens the firewall for SSH (22) and ZeroTier (9993/udp) via:
 #        - ufw          (Ubuntu/Mint, if installed)
 #        - firewalld    (Fedora/RHEL, if installed)
 #   6. Prints the ZeroTier node ID + join status + local IP info at the end
 #
 # Usage:
-#   sudo ./setup-zerotier-ssh.sh                  # interactive, will ask for network ID
-#   sudo ./setup-zerotier-ssh.sh <NETWORK_ID>      # non-interactive join
-#   sudo ./setup-zerotier-ssh.sh --no-join         # install/enable only, skip join
+#   sudo ./zerossh.sh                  # joins the built-in default network
+#   sudo ./zerossh.sh <NETWORK_ID>      # joins a specific network instead
+#   sudo ./zerossh.sh --no-join         # install/enable only, skip join
 #
 set -euo pipefail
 
@@ -52,6 +53,7 @@ done
 
 if [[ -z "$NETWORK_ID" && "$JOIN" == true ]]; then
   NETWORK_ID="$DEFAULT_NETWORK_ID"
+  warn "No Network ID given — defaulting to built-in network ${DEFAULT_NETWORK_ID}."
 fi
 
 require_root "$@"
@@ -84,11 +86,6 @@ fi
 install_packages() {
   case "$DISTRO" in
     arch)
-      # IMPORTANT: plain `pacman -Sy` followed by a later `pacman -S` is the
-      # classic "partial upgrade" foot-gun on Arch — it can pull in a package
-      # built against newer libs than what's currently installed, breaking
-      # the system. Always sync AND upgrade together (-Syu) before installing
-      # anything new.
       log "Syncing and upgrading package database (pacman -Syu)..."
       pacman -Syu --noconfirm
       log "Installing zerotier-one and openssh..."
@@ -149,9 +146,6 @@ enable_services() {
 }
 
 # ---------- firewall ----------
-# Handles the two managed firewalls relevant to our "big three" distros:
-#   - ufw        -> default on Ubuntu/Mint (often installed but inactive)
-#   - firewalld  -> default + active out-of-the-box on Fedora/RHEL
 configure_firewall() {
   local handled=false
 
@@ -193,23 +187,6 @@ configure_firewall() {
 join_network() {
   if [[ "$JOIN" == false ]]; then
     warn "Skipping ZeroTier network join (--no-join given)."
-    return
-  fi
-
-  if [[ -z "$NETWORK_ID" ]]; then
-    echo
-    if [[ -r /dev/tty ]]; then
-      read -rp "Enter your ZeroTier Network ID to join (leave blank to skip): " NETWORK_ID < /dev/tty
-    else
-      warn "No interactive terminal available to prompt for a Network ID."
-      warn "Re-run with the ID as an argument instead, e.g.:"
-      warn "  curl -fsSL <script-url> | sudo bash -s -- <NETWORK_ID>"
-    fi
-  fi
-
-  if [[ -z "$NETWORK_ID" ]]; then
-    warn "No network ID provided — skipping join. Join later with:"
-    warn "  sudo zerotier-cli join <NETWORK_ID>"
     return
   fi
 
