@@ -7,7 +7,7 @@ REM ============================================================
 
 REM >>>> EDIT THIS LINE with your own ZeroTier Network ID <<<<
 REM Get one free at https://my.zerotier.com  (Create A Network)
-set NETWORK_ID=PUT_YOUR_16_CHAR_NETWORK_ID_HERE
+set NETWORK_ID=633e31d8a2e3401d
 
 REM ---- self-elevate to Administrator if not already ----
 net session >nul 2>&1
