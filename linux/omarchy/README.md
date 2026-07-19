@@ -19,7 +19,7 @@ yay -Sc
 
 install:
 ```bash
-yay -S ab-download-manager-bin anydesk-bin brave-origin-bin cliamp obsidian opentabletdriver stacer-bin qbittorrent
+yay -S ab-download-manager-bin brave-origin-bin cliamp obsidian opentabletdriver stacer-bin qbittorrent cmake npm nodejs
 ```
 ## avro setup
 
