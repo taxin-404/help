@@ -121,17 +121,6 @@ gesture = 3, right, dispatcher, movefocus, r
 
 ---
 
-## 7. Terminal Scroll Speed
-
-Adjust per-app scroll speed for the scrolling layout in `~/.config/hypr/input.conf`:
-
-```conf
-windowrule = match:class (Alacritty|kitty|foot), scroll_touchpad 1.5
-windowrule = match:class com.mitchellh.ghostty, scroll_touchpad 0.2
-```
-
----
-
 ## Reload & Validate
 
 ```bash
