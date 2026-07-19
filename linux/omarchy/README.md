@@ -8,8 +8,16 @@ git clone https://github.com/tmux-plugins/tpm ~/.config/tmux/plugins/tpm
  - to apply the changes, go to `prefix` then press `shift + i`
  - to save a session go to `prefix` and press `ctrl + s`
 
-## basic apps
+## basic needs
+cleanup:
+```bash
+sudo rm -rf /var/cache/pacman/pkg/*
+```
+```bash
+yay -Sc
+```
 
+install:
 ```bash
 yay -S ab-download-manager-bin anydesk-bin brave-origin-bin cliamp obsidian opentabletdriver stacer-bin qbittorrent
 ```
