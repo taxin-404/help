@@ -16,6 +16,13 @@ A setup combining Hyprland's **scrolling layout** with the **hyprland-scroll-ove
 
 ## 1. Install the Plugin
 
+Before you continue:
+
+```bash
+sudo pacman -S cmake
+```
+### main installation:
+
 ```bash
 hyprpm update
 hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git
