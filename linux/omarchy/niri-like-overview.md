@@ -70,24 +70,27 @@ Default `column_width` is `0.49` (half-screen columns). Comment it out or adjust
 
 In `~/.config/hypr/autostart.conf`:
 
-```conf
-plugin {
-    scrolloverview {
-        gesture_distance = 300   # max gesture distance for scroll
-        scale = 0.5              # overview zoom level
-        workspace_gap = 100      # gap between workspaces in overview
-        layout = vertical        # vertical or horizontal overview
-        wallpaper = 0            # 0: global only, 1: per-workspace, 2: both
-        blur = false             # blur the overview wallpaper
+```lua
+-- .config/hypr/hyprland.lua
+hl.config({
+    plugin = {
+        scrolloverview = {
+            gesture_distance = 300, -- how far is the "max" for the gesture
+            scale = 0.5, -- preferred overview scale
+            workspace_gap = 100,
+            layout = "vertical", -- vertical or horizontal
+            wallpaper = 0, -- 0: global only, 1: per-workspace only, 2: both
+            blur = false, -- blur only the main overview wallpaper
 
-        shadow {
-            enabled = false
-            range = 50
-            render_power = 3
-            color = rgba(1a1a1aee)
-        }
-    }
-}
+            shadow = {
+                enabled = false,
+                range = 50,
+                render_power = 3,
+                color = 0xee1a1a1a,
+            },
+        },
+    },
+})
 ```
 
 ---
