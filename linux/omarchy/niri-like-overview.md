@@ -20,13 +20,14 @@ Before you continue:
 
 ```bash
 sudo pacman -S cmake
+hyprpm update
 ```
 ### main installation:
 
 ```bash
-hyprpm update
 hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git
-hyprpm enable hyprland-scroll-overview
+hyprpm update
+hyprpm enable scrolloverview
 ```
 
 Verify it's loaded:
