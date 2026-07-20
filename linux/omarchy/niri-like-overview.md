@@ -40,7 +40,7 @@ hyprpm list
 
 ## 2. Load the Plugin
 
-In `~/.config/hypr/hyprland.conf`, add before any config sources:
+In `~/.config/hypr/hyprland.lua`, add before any config sources:
 
 ```lua
 -- Load hyprpm plugins on Hyprland startup
@@ -53,16 +53,20 @@ end)
 
 ## 3. Scrolling Layout
 
-In `~/.config/hypr/looknfeel.conf`:
+In `~/.config/hypr/looknfeel.lua`:
 
-```conf
-general {
-    layout = scrolling
-}
+```lua
+hl.config({
+    general = {
+        -- No gaps between windows or borders.
+        gaps_in = 1,
+        gaps_out = 2,
+        border_size = 1,
 
-scrolling {
-    # column_width = 0.97  # uncomment for near-fullscreen columns
-}
+        -- Change to niri-like side-scrolling layout.
+        layout = "scrolling",
+    },
+})
 ```
 
 Default `column_width` is `0.49` (half-screen columns). Comment it out or adjust as needed.
@@ -71,7 +75,7 @@ Default `column_width` is `0.49` (half-screen columns). Comment it out or adjust
 
 ## 4. Plugin Configuration
 
-In `~/.config/hypr/autostart.conf`:
+In `~/.config/hypr/looknfeel.lua`:
 
 ```lua
 -- .config/hypr/hyprland.lua
