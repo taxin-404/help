@@ -104,12 +104,13 @@ hl.config({
 
 ## 5. Keybindings
 
-In `~/.config/hypr/bindings.conf`:
+In `~/.config/hypr/bindings.lua`:
 
-```conf
-# Toggle scroll overview
-unbind = SUPER, TAB
-bind = SUPER, TAB, scrolloverview:overview, toggle
+```lua
+hl.unbind("SUPER + TAB")
+hl.bind("SUPER + TAB", function()
+    hl.plugin.scrolloverview.overview("toggle")
+end)
 ```
 
 > **Note:** `SUPER + TAB` was originally bound to "Next workspace" in Omarchy defaults.
