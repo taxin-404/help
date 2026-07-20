@@ -42,7 +42,7 @@ hyprpm list
 
 In `~/.config/hypr/hyprland.conf`, add before any config sources:
 
-```conf
+```lua
 -- Load hyprpm plugins on Hyprland startup
 hl.on("hyprland.start", function()
     hl.exec_cmd("hyprpm reload -n")
