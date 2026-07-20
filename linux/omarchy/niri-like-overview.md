@@ -40,7 +40,7 @@ hyprpm list
 
 ## 2. Load the Plugin
 
-In `~/.config/hypr/hyprland.lua`, add before any config sources:
+In `~/.config/hypr/autostart.lua`, add before any config sources:
 
 ```lua
 -- Load hyprpm plugins on Hyprland startup
