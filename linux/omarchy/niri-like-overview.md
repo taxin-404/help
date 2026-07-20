@@ -125,21 +125,6 @@ end)
 
 ---
 
-## 6. Touchpad Gestures (Optional)
-
-In `~/.config/hypr/input.conf`, uncomment for gesture support:
-
-```conf
-# 3-finger horizontal swipe to switch workspaces
-gesture = 3, horizontal, workspace
-
-# 3-finger swipe to move focus in scrolling layout
-gesture = 3, left, dispatcher, movefocus, l
-gesture = 3, right, dispatcher, movefocus, r
-```
-
----
-
 ## Reload & Validate
 
 ```bash
@@ -155,11 +140,10 @@ If errors appear, fix the config and re-run until clean.
 
 | File | What it configures |
 |------|--------------------|
-| `~/.config/hypr/hyprland.conf` | Plugin loading |
-| `~/.config/hypr/looknfeel.conf` | Scrolling layout |
-| `~/.config/hypr/autostart.conf` | Plugin settings block |
-| `~/.config/hypr/bindings.conf` | SUPER+TAB overview toggle |
-| `~/.config/hypr/input.conf` | Gestures & scroll speed |
+| `~/.config/hypr/hyprland.lua` | Plugin loading |
+| `~/.config/hypr/looknfeel.lua` | Scrolling layout |
+| `~/.config/hypr/autostart.lua` | Plugin settings block |
+| `~/.config/hypr/bindings.lua` | SUPER+TAB overview toggle |
 
 ---
 
