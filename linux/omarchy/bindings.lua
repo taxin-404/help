@@ -12,3 +12,6 @@ hl.window_rule({
   size = "600 400",
   move = "63 400",
 })
+
+hl.unbind("SUPER + RETURN")
+o.bind("SUPER + RETURN", "Tmux", "uwsm-app -- xdg-terminal-exec tmux new-session -A -s main")
