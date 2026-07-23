@@ -59,7 +59,7 @@ rclone config
 
 Full walkthrough:
 1. `n` → New remote
-2. `name>` → `oma`
+2. `name>` → `<REMOTE_NAME>`
 3. `Storage>` → type `terabox` (option 56 in the list) → Enter
 4. `cookie>` → paste your TeraBox `ndus` cookie value (see below for how to get it)
 5. `Edit advanced config?` → `n` (No)
