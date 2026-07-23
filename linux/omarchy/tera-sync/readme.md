@@ -231,6 +231,7 @@ files by hand — plus a one-key retry.
 
 **Setup:**
 ```bash
+sudo pacman -S python-pip
 pip install textual --break-system-packages
 mkdir -p ~/.config/cloud-sync/scripts
 # place terabox-tui.py in ~/.config/cloud-sync/scripts/
