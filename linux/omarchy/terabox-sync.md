@@ -71,7 +71,7 @@ Full walkthrough:
 - Open DevTools → Application/Storage → Cookies → `www.terabox.com`
 - Copy the `ndus` cookie value (or the full cookie string, rclone accepts either)
 
-![How to find the ndus cookie in DevTools](images/terabox-cookie-guide.png)
+![How to find the ndus cookie in DevTools](images/terabox-cdus.png)
 *DevTools → Application tab → Cookies → select the TeraBox domain → find `ndus` → copy its Value (value redacted in this example — never share your real cookie value)*
 
 Test the remote:
