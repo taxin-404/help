@@ -59,9 +59,9 @@ rclone config
 
 Full walkthrough:
 1. `n` → New remote
-2. `<name>` → `oma`
-3. `<Storage>` → type `terabox` (option 56 in the list) → Enter
-4. `<cookie>` → paste your TeraBox `ndus` cookie value (see below for how to get it)
+2. `name>` → `oma`
+3. `Storage>` → type `terabox` (option 56 in the list) → Enter
+4. `cookie>` → paste your TeraBox `ndus` cookie value (see below for how to get it)
 5. `Edit advanced config?` → `n` (No)
 6. `Keep this "<REMOTE_NAME>" remote?` → `y` (Yes)
 7. `q` to quit config
@@ -70,6 +70,9 @@ Full walkthrough:
 - Log into TeraBox in a browser
 - Open DevTools → Application/Storage → Cookies → `www.terabox.com`
 - Copy the `ndus` cookie value (or the full cookie string, rclone accepts either)
+
+![How to find the ndus cookie in DevTools](images/terabox-cookie-guide.png)
+*DevTools → Application tab → Cookies → select the TeraBox domain → find `ndus` → copy its Value (value redacted in this example — never share your real cookie value)*
 
 Test the remote:
 ```bash
