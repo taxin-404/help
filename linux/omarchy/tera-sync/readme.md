@@ -223,8 +223,6 @@ A small terminal dashboard (`terabox-tui.py`) that reads `sync.log` /
 `failed.log` and shows sync history and failures without grepping log
 files by hand — plus a one-key retry.
 
-📥 **Download:** [terabox-tui.py](https://github.com/taxin-404/help/raw/refs/heads/main/linux/omarchy/tera-sync/terabox-tui.py)
-
 **What it shows:**
 - Status bar with the last run's result (✅/❌) and a recent failure count
 - A table of recent sync runs (time, status, error count), color-coded
@@ -244,6 +242,17 @@ chmod +x ~/.config/cloud-sync/scripts/terabox-tui.py
 **Run:**
 ```bash
 python3 ~/.config/cloud-sync/scripts/terabox-tui.py
+```
+
+**Optional — install as a `terasync` command (works in any shell):**
+```bash
+sudo ln -sf ~/.config/cloud-sync/scripts/terabox-tui.py /usr/local/bin/terasync
+sudo chmod +x /usr/local/bin/terasync
+```
+`/usr/local/bin` is on `$PATH` by default for bash, zsh, fish, and others —
+no shell config editing needed. After this, just run:
+```bash
+terasync
 ```
 
 **Keybindings:**
