@@ -80,15 +80,43 @@ rclone lsd <REMOTE_NAME>:
 ```
 Should list your top-level TeraBox folders.
 
+**Alternative: edit the `.conf` file directly**
+
+The interactive wizard above just writes to a config file at
+`~/.config/rclone/rclone.conf`. If you prefer, skip the wizard and edit
+that file directly instead:
+
+```bash
+mkdir -p ~/.config/rclone
+nano ~/.config/rclone/rclone.conf
+```
+
+Add a block like this:
+```ini
+[<REMOTE_NAME>]
+type = terabox
+cookie = <YOUR_NDUS_COOKIE_VALUE>
+```
+
+Save, then test the same way:
+```bash
+rclone lsd <REMOTE_NAME>:
+```
+
+This is faster for repeat setups or scripting, but the file is still
+plaintext — same security note below applies either way.
+
 **⚠️ Security — the cookie is a live login session:**
 - It's stored **in plaintext** in `~/.config/rclone/rclone.conf`
 - Anyone with this cookie can access the TeraBox account without a password
-- **Never paste/share this cookie value anywhere** (chat, screenshots, terminal recordings)
+- **Never paste/share this cookie value, or the config file itself, anywhere** (chat, screenshots, terminal recordings, public repos)
+- Add `rclone.conf` to `.gitignore` if it ever lives inside a project folder
 - If it's ever exposed, change the TeraBox account password immediately — this invalidates the old session/cookie — then reconfigure the remote with a fresh cookie:
   ```bash
   rclone config
   # e (Edit existing remote) → <REMOTE_NAME> → paste new cookie
   ```
+  or just edit the `cookie =` line in `rclone.conf` directly.
 
 ## 3. Local folder
 
@@ -121,7 +149,7 @@ rclone bisync ~/cloud-sync <REMOTE_NAME>:/<REMOTE_FOLDER> --size-only
 
 ## 6. Failure-tracking wrapper script
 
-Scripts live in `~/cloud-sync-scripts/`:
+Scripts live in `~/.config/cloud-sync/scripts/`:
 
 - `terabox-sync.sh` — runs bisync, logs everything to
   `~/.local/share/terabox-sync/sync.log`, and extracts ERROR lines into
@@ -130,15 +158,15 @@ Scripts live in `~/cloud-sync-scripts/`:
 
 Setup:
 ```bash
-mkdir -p ~/cloud-sync-scripts/
+mkdir -p ~/.config/cloud-sync/scripts/
 # place terabox-sync.sh and terabox-retry.sh here
-chmod +x ~/cloud-sync-scripts/*.sh
+chmod +x ~/.config/cloud-sync/scripts/*.sh
 ```
 
 Check failures anytime:
 ```bash
-~/cloud-sync-scripts/terabox-retry.sh          # just show
-~/cloud-sync-scripts/terabox-retry.sh --retry  # show + resync
+~/.config/cloud-sync/scripts/terabox-retry.sh          # just show
+~/.config/cloud-sync/scripts/terabox-retry.sh --retry  # show + resync
 ```
 
 ## 7. systemd user service + timer (auto-sync every 5 min)
@@ -150,7 +178,7 @@ Description=TeraBox bisync
 
 [Service]
 Type=oneshot
-ExecStart=%h/cloud-sync-scripts/terabox-sync.sh
+ExecStart=%h/.config/cloud-sync/scripts/terabox-sync.sh
 ```
 
 `~/.config/systemd/user/terabox-sync.timer`:
