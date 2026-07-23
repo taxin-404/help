@@ -9,6 +9,23 @@ failure tracking.
 > - `<REMOTE_FOLDER>` — the folder on TeraBox you want to sync to
 > - `~/cloud-sync` — your local sync folder path (rename if you like)
 
+> **⚠️ Important disclaimer — about the tool:** This guide uses
+> [**bclone**](https://github.com/BenjiThatFoxGuy-Labs/bclone), an **unofficial
+> fork of rclone** that adds TeraBox (and other) backend support. It is
+> **not mainline rclone** and **not an official TeraBox integration**:
+> - TeraBox provides no public API or official client credentials — bclone's
+>   TeraBox backend works by reusing your logged-in browser session cookie,
+>   reverse-engineered against TeraBox's web endpoints
+> - It can break without warning if TeraBox changes their site
+> - Auth is a live session cookie, not an OAuth token — treat it like a password (see security note below)
+> - Expect occasional instability (rate limits, captchas, upload failures on large files)
+>
+> **Only install from the official repo:** `github.com/BenjiThatFoxGuy-Labs/bclone`
+> (or the matching AUR packages `bclone-bin` / `bclone-git`). The maintainer
+> has flagged that fake "continuation" forks exist that impersonate this
+> project to distribute malware — don't trust forks claiming to be an
+> updated/continued version.
+
 - **Local sync folder:** `~/cloud-sync`
 - **Remote:** `<REMOTE_NAME>:/<REMOTE_FOLDER>` (rclone remote name `<REMOTE_NAME>` (your choice), TeraBox folder `<REMOTE_FOLDER>`)
 - **Sync interval:** every 5 minutes
@@ -16,11 +33,23 @@ failure tracking.
 
 ---
 
-## 1. Install rclone
+## 1. Install bclone
+
+TeraBox support isn't in mainline rclone's official Arch package, so install **bclone** instead:
 
 ```bash
-sudo pacman -S rclone
+# via AUR (pick one)
+yay -S bclone-bin     # prebuilt binary, faster install
+yay -S bclone-git     # builds from source, latest commits
 ```
+
+Or manually from GitHub releases: https://github.com/BenjiThatFoxGuy-Labs/bclone/releases
+
+> Note: bclone is a drop-in replacement for the `rclone` binary — same
+> commands, same config format, just with extra backends. This guide will
+> keep using `rclone` in commands below, but you're actually invoking
+> bclone's binary (name it/alias it as `rclone` or adjust commands to
+> `bclone` depending on how you installed it).
 
 ## 2. Configure the TeraBox remote
 
@@ -30,9 +59,9 @@ rclone config
 
 Full walkthrough:
 1. `n` → New remote
-2. `name>` → `oma`
-3. `Storage>` → type `terabox` (option 56 in the list) → Enter
-4. `cookie>` → paste your TeraBox `ndus` cookie value (see below for how to get it)
+2. `<name>` → `oma`
+3. `<Storage>` → type `terabox` (option 56 in the list) → Enter
+4. `<cookie>` → paste your TeraBox `ndus` cookie value (see below for how to get it)
 5. `Edit advanced config?` → `n` (No)
 6. `Keep this "<REMOTE_NAME>" remote?` → `y` (Yes)
 7. `q` to quit config
