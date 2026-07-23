@@ -4,8 +4,13 @@ TeraBox has no native Linux sync client. This setup uses `rclone bisync` +
 a systemd user timer to approximate live sync, plus a wrapper script for
 failure tracking.
 
-- **Local sync folder:** `~/oma`
-- **Remote:** `oma:/omacom` (rclone remote name `oma`, TeraBox folder `omacom`)
+> **Before you start:** replace these placeholders throughout with your own values:
+> - `<REMOTE_NAME>` — whatever you name your rclone remote (e.g. `terabox`, `tb`)
+> - `<REMOTE_FOLDER>` — the folder on TeraBox you want to sync to
+> - `~/cloud-sync` — your local sync folder path (rename if you like)
+
+- **Local sync folder:** `~/cloud-sync`
+- **Remote:** `<REMOTE_NAME>:/<REMOTE_FOLDER>` (rclone remote name `<REMOTE_NAME>` (your choice), TeraBox folder `<REMOTE_FOLDER>`)
 - **Sync interval:** every 5 minutes
 - **Compare method:** `--size-only` (TeraBox doesn't reliably support modtime or checksum comparison)
 
@@ -22,18 +27,41 @@ sudo pacman -S rclone
 ```bash
 rclone config
 ```
-- `n` → new remote → name it `oma` → select TeraBox from provider list
-- Follow prompts for TeraBox login/cookie auth
 
-Test it:
+Full walkthrough:
+1. `n` → New remote
+2. `name>` → `oma`
+3. `Storage>` → type `terabox` (option 56 in the list) → Enter
+4. `cookie>` → paste your TeraBox `ndus` cookie value (see below for how to get it)
+5. `Edit advanced config?` → `n` (No)
+6. `Keep this "<REMOTE_NAME>" remote?` → `y` (Yes)
+7. `q` to quit config
+
+**Getting the cookie:**
+- Log into TeraBox in a browser
+- Open DevTools → Application/Storage → Cookies → `www.terabox.com`
+- Copy the `ndus` cookie value (or the full cookie string, rclone accepts either)
+
+Test the remote:
 ```bash
-rclone lsd oma:
+rclone lsd <REMOTE_NAME>:
 ```
+Should list your top-level TeraBox folders.
+
+**⚠️ Security — the cookie is a live login session:**
+- It's stored **in plaintext** in `~/.config/rclone/rclone.conf`
+- Anyone with this cookie can access the TeraBox account without a password
+- **Never paste/share this cookie value anywhere** (chat, screenshots, terminal recordings)
+- If it's ever exposed, change the TeraBox account password immediately — this invalidates the old session/cookie — then reconfigure the remote with a fresh cookie:
+  ```bash
+  rclone config
+  # e (Edit existing remote) → <REMOTE_NAME> → paste new cookie
+  ```
 
 ## 3. Local folder
 
 ```bash
-mkdir -p ~/oma
+mkdir -p ~/cloud-sync
 ```
 
 ## 4. First-time sync (baseline)
@@ -41,7 +69,7 @@ mkdir -p ~/oma
 **Do NOT interrupt this (no Ctrl+C) — let it finish, especially with large files.**
 
 ```bash
-rclone bisync ~/oma oma:/omacom --resync --size-only
+rclone bisync ~/cloud-sync <REMOTE_NAME>:/<REMOTE_FOLDER> --resync --size-only
 ```
 
 > Note: `--checksum` doesn't work here — TeraBox doesn't expose file hashes,
@@ -49,19 +77,19 @@ rclone bisync ~/oma oma:/omacom --resync --size-only
 
 Verify after it finishes:
 ```bash
-rclone check ~/oma oma:/omacom --size-only
+rclone check ~/cloud-sync <REMOTE_NAME>:/<REMOTE_FOLDER> --size-only
 ```
 
 ## 5. Regular sync (after baseline exists)
 
 ```bash
-rclone bisync ~/oma oma:/omacom --size-only
+rclone bisync ~/cloud-sync <REMOTE_NAME>:/<REMOTE_FOLDER> --size-only
 ```
 (no `--resync` needed after the first run)
 
 ## 6. Failure-tracking wrapper script
 
-Scripts live in `~/oma-scripts/`:
+Scripts live in `~/cloud-sync-scripts/`:
 
 - `terabox-sync.sh` — runs bisync, logs everything to
   `~/.local/share/terabox-sync/sync.log`, and extracts ERROR lines into
@@ -70,15 +98,15 @@ Scripts live in `~/oma-scripts/`:
 
 Setup:
 ```bash
-mkdir -p ~/oma-scripts
+mkdir -p ~/cloud-sync-scripts/
 # place terabox-sync.sh and terabox-retry.sh here
-chmod +x ~/oma-scripts/*.sh
+chmod +x ~/cloud-sync-scripts/*.sh
 ```
 
 Check failures anytime:
 ```bash
-~/oma-scripts/terabox-retry.sh          # just show
-~/oma-scripts/terabox-retry.sh --retry  # show + resync
+~/cloud-sync-scripts/terabox-retry.sh          # just show
+~/cloud-sync-scripts/terabox-retry.sh --retry  # show + resync
 ```
 
 ## 7. systemd user service + timer (auto-sync every 5 min)
@@ -90,7 +118,7 @@ Description=TeraBox bisync
 
 [Service]
 Type=oneshot
-ExecStart=%h/oma-scripts/terabox-sync.sh
+ExecStart=%h/cloud-sync-scripts/terabox-sync.sh
 ```
 
 `~/.config/systemd/user/terabox-sync.timer`:
@@ -134,12 +162,12 @@ cat ~/.local/share/terabox-sync/failed.log
   real-time sync like Dropbox.
 - **Never Ctrl+C a bisync run**, especially with large files mid-transfer —
   it can leave partial/corrupt files on the remote. If it happens, delete
-  the broken file on remote (`rclone deletefile "oma:/path/to/file"`) and
+  the broken file on remote (`rclone deletefile "<REMOTE_NAME>:/path/to/file"`) and
   resync.
 - **`--checksum` is a no-op for TeraBox** — no shared hash support, falls
   back to modtime/size. Use `--size-only` instead.
 - To sync only a subfolder instead of everything, point both sides at that
   subfolder, e.g.:
   ```bash
-  rclone bisync ~/oma-mern oma:/mern --resync --size-only
+  rclone bisync ~/cloud-sync-subfolder <REMOTE_NAME>:/<SUBFOLDER> --resync --size-only
   ```
