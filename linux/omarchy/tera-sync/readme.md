@@ -155,6 +155,7 @@ Scripts live in `~/.config/cloud-sync/scripts/`:
   `~/.local/share/terabox-sync/sync.log`, and extracts ERROR lines into
   `~/.local/share/terabox-sync/failed.log`
 - `terabox-retry.sh` — shows recent failures; `--retry` flag re-runs sync
+- `terabox-tui.py` — optional terminal dashboard for sync reports (see step 9)
 
 Setup:
 ```bash
@@ -213,6 +214,42 @@ systemctl --user status terabox-sync.timer
 tail -f ~/.local/share/terabox-sync/sync.log
 cat ~/.local/share/terabox-sync/failed.log
 ```
+
+For a friendlier way to view this, see the TUI app below.
+
+## 9. TUI app for sync reports (optional)
+
+A small terminal dashboard (`terabox-tui.py`) that reads `sync.log` /
+`failed.log` and shows sync history and failures without grepping log
+files by hand — plus a one-key retry.
+
+**What it shows:**
+- Status bar with the last run's result (✅/❌) and a recent failure count
+- A table of recent sync runs (time, status, error count), color-coded
+- A scrollable panel listing recent failure details
+- Auto-refreshes every 30 seconds
+
+**Setup:**
+```bash
+pip install textual --break-system-packages
+mkdir -p ~/.config/cloud-sync/scripts
+# place terabox-tui.py in ~/.config/cloud-sync/scripts/
+chmod +x ~/.config/cloud-sync/scripts/terabox-tui.py
+```
+
+**Run:**
+```bash
+python3 ~/.config/cloud-sync/scripts/terabox-tui.py
+```
+
+**Keybindings:**
+| Key | Action |
+|-----|--------|
+| `r` | Retry sync now (runs `terabox-sync.sh` directly) |
+| `f` | Refresh the view manually |
+| `q` | Quit |
+
+> The TUI expects `terabox-sync.sh` at `~/.config/cloud-sync/scripts/terabox-sync.sh` (from step 6) — if you placed it elsewhere, edit the `SYNC_SCRIPT` path near the top of `terabox-tui.py`.
 
 ---
 
