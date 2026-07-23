@@ -2,10 +2,10 @@
 # TeraBox bisync wrapper with failure tracking
 # Usage: ./terabox-sync.sh
 
-set -uo pipefail
+set -euo pipefail
 
-LOCAL_DIR="$HOME/oma"
-REMOTE="oma:/omacom"
+LOCAL_DIR="$HOME/<REMOTE_FOLDER>"
+REMOTE="<REMOTE_NAME>:/<ONLINE_FOLDER>"
 LOG_DIR="$HOME/.local/share/terabox-sync"
 LOG_FILE="$LOG_DIR/sync.log"
 FAILED_FILE="$LOG_DIR/failed.log"
