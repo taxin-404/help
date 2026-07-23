@@ -71,7 +71,7 @@ Full walkthrough:
 - Open DevTools → Application/Storage → Cookies → `www.terabox.com`
 - Copy the `ndus` cookie value (or the full cookie string, rclone accepts either)
 
-![How to find the ndus cookie in DevTools](terabox-cdus.png)
+![How to find the ndus cookie in DevTools](images/terabox-cdus.png)
 *DevTools → Application tab → Cookies → select the TeraBox domain → find `ndus` → copy its Value (value redacted in this example — never share your real cookie value)*
 
 Test the remote:
@@ -223,6 +223,8 @@ A small terminal dashboard (`terabox-tui.py`) that reads `sync.log` /
 `failed.log` and shows sync history and failures without grepping log
 files by hand — plus a one-key retry.
 
+📥 **Download:** [terabox-tui.py](https://github.com/taxin-404/help/raw/refs/heads/main/linux/omarchy/tera-sync/terabox-tui.py)
+
 **What it shows:**
 - Status bar with the last run's result (✅/❌) and a recent failure count
 - A table of recent sync runs (time, status, error count), color-coded
@@ -231,10 +233,10 @@ files by hand — plus a one-key retry.
 
 **Setup:**
 ```bash
-sudo pacman -S python-pip
 pip install textual --break-system-packages
 mkdir -p ~/.config/cloud-sync/scripts
-# place terabox-tui.py in ~/.config/cloud-sync/scripts/
+curl -L -o ~/.config/cloud-sync/scripts/terabox-tui.py \
+  https://github.com/taxin-404/help/raw/refs/heads/main/linux/omarchy/tera-sync/terabox-tui.py
 chmod +x ~/.config/cloud-sync/scripts/terabox-tui.py
 ```
 
