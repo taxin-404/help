@@ -19,10 +19,10 @@ yay -Sc
 
 install:
 ```bash
-yay -S --needed ab-download-manager-bin brave-origin-bin cliamp obsidian opentabletdriver stacer-bin qbittorrent cmake npm nodejs proton-vpn-gtk-app terabox-bin anydesk-bin
+yay -S --needed ab-download-manager-bin brave-origin-bin cliamp obsidian opentabletdriver stacer-bin qbittorrent cmake npm nodejs proton-vpn-gtk-app terabox-bin anydesk-bin superfile bclone
 ```
-## avro setup
 
+## avro setup
 ```bash
 bash -c "$(wget -q https://raw.githubusercontent.com/asifakonjee/openbangla-script/master/fcitx5.sh -O -)"
 ```
