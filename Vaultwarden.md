@@ -74,9 +74,19 @@ A complete step-by-step guide to deploying, configuring, and hardening a **free,
    | Environment Variable | Value | Purpose |
    |---|---|---|
    | `DATABASE_URL` | `postgresql://neondb_owner:...@.../neondb?sslmode=require` | Connection string to your Neon PostgreSQL database |
+   | `DOMAIN` | `https://vaultwarden-r4ro.onrender.com` | Your instance's public URL. Required for correct icon downloads, WebAuthn/FIDO2 login, and links in emails to work — without it, these can silently break |
    | `SIGNUPS_ALLOWED` | `true` | Temporarily enables account registration (disable after Step 4) |
    | `WEBSOCKET_ENABLED` | `true` | Enables real-time sync notifications between browser/app clients |
    | `IP_HEADER` | `X-Forwarded-For` | Correctly parses client IPs from behind Render's reverse proxy |
+   | `ADMIN_TOKEN` | an Argon2 hash — see below | Enables and protects the `/admin` panel. Without this variable set, the admin panel is disabled entirely |
+
+   **Generating `ADMIN_TOKEN`:** don't use a plain password — generate a securely hashed token locally:
+
+   ```bash
+   docker run --rm -it vaultwarden/server /vaultwarden hash
+   ```
+
+   This prompts you for a password and prints a hash starting with `$argon2id$...`. Paste the **full hash** (not the plain password) as the value of `ADMIN_TOKEN`. Keep the plain password somewhere safe — you'll need it to actually log into `/admin`, not the hash.
 
 5. Click **Create Web Service** and wait 1–2 minutes for the initial build and database migration to finish, until the status shows **Deploy live**.
 6. Note your live app URL (e.g. `https://vaultwarden-r4ro.onrender.com`) — you'll need it for the next steps.
@@ -111,6 +121,7 @@ UptimeRobot now pings your instance around the clock. Since the interval (5 min)
    - Return to your **Render Dashboard → Environment**.
    - Change `SIGNUPS_ALLOWED` from `true` to `false`.
    - Click **Save Changes** — Render will automatically redeploy with signups permanently closed.
+6. **Confirm the admin panel works:** visit `https://vaultwarden-r4ro.onrender.com/admin` and log in with the plain-text password you used to generate the `ADMIN_TOKEN` hash in Step 2 (not the hash itself).
 
 ---
 
@@ -142,6 +153,7 @@ UptimeRobot now pings your instance around the clock. Since the interval (5 min)
 - **Zero-knowledge architecture:** master-key derivation and all cryptographic operations happen client-side, using PBKDF2 (or Argon2) plus AES-256 encryption.
 - **Database security:** what's stored in Neon PostgreSQL is encrypted ciphertext only — neither Neon, Render, nor anyone else can read your passwords or notes.
 - **Mandatory TLS:** Render automatically provisions Let's Encrypt certificates, and all HTTP traffic is force-redirected to HTTPS.
+- **Admin panel:** protected by the `ADMIN_TOKEN` hash set in Step 2 — without it, `/admin` is disabled entirely rather than open to the public.
 
 ---
 
