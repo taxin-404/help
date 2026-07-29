@@ -7,26 +7,26 @@ A complete step-by-step guide to deploying, configuring, and hardening a **free,
 ## 📌 Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Bitwarden Clients                            │
-│      (Browser Extension / Android / iOS / Desktop)              │
-└──────────────────────────┬──────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                    Bitwarden Clients                      │
+│      (Browser Extension / Android / iOS / Desktop)        │
+└──────────────────────────┬────────────────────────────────┘
                            │ HTTPS (TLS 1.3)
                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Render Web Service                           │
-│  • Image: vaultwarden/server:latest (Rust implementation)       │
-│  • URL: https://vaultwarden-r4ro.onrender.com                   │
-│  • Memory footprint: ~20-30 MB RAM                              │
-└─────────────┬────────────────────────────────▲──────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                    Render Web Service                     │
+│  • Image: vaultwarden/server:latest (Rust implementation) │
+│  • URL: https://vaultwarden-r4ro.onrender.com             │
+│  • Memory footprint: ~20-30 MB RAM                        │
+└─────────────┬────────────────────────────────▲────────────┘
               │ Encrypted SSL                  │ 5-min HTTP ping
               ▼                                │ (prevents sleep)
-┌───────────────────────────┐    ┌─────────────┴──────────────────┐
-│    Neon.tech PostgreSQL   │    │        UptimeRobot             │
-│  • Serverless database    │    │  • HTTP(s) monitor             │
-│  • Region: AWS Singapore  │    │  • Interval: 5 minutes         │
-│  • Storage limit: 0.5 GB  │    │  • Prevents cold starts        │
-└───────────────────────────┘    └────────────────────────────────┘
+┌───────────────────────────┐    ┌─────────────┴────────────┐
+│    Neon.tech PostgreSQL   │    │        UptimeRobot       │
+│  • Serverless database    │    │  • HTTP(s) monitor       │
+│  • Region: AWS Singapore  │    │  • Interval: 5 minutes   │
+│  • Storage limit: 0.5 GB  │    │  • Prevents cold starts  │
+└───────────────────────────┘    └──────────────────────────┘
 ```
 
 ### Why this stack?
