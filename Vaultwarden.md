@@ -1,172 +1,163 @@
 # 🔐 Self-Hosted Vaultwarden (Bitwarden) on 100% Free Cloud Infrastructure
 
-A complete step-by-step guide to deploying, configuring, and hardening a **100% free, production-ready, self-hosted password manager** using **Vaultwarden**, **Render**, **Neon PostgreSQL**, and **UptimeRobot**.
+A complete step-by-step guide to deploying, configuring, and hardening a **free, production-ready, self-hosted password manager** using **Vaultwarden**, **Render**, **Neon PostgreSQL**, and **UptimeRobot**.
 
 ---
 
 ## 📌 Architecture Overview
 
-
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Bitwarden Clients                            │
+│      (Browser Extension / Android / iOS / Desktop)              │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ HTTPS (TLS 1.3)
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Render Web Service                           │
+│  • Image: vaultwarden/server:latest (Rust implementation)       │
+│  • URL: https://vaultwarden-r4ro.onrender.com                   │
+│  • Memory footprint: ~20-30 MB RAM                              │
+└─────────────┬────────────────────────────────▲──────────────────┘
+              │ Encrypted SSL                  │ 5-min HTTP ping
+              ▼                                │ (prevents sleep)
+┌───────────────────────────┐    ┌─────────────┴──────────────────┐
+│    Neon.tech PostgreSQL   │    │        UptimeRobot             │
+│  • Serverless database    │    │  • HTTP(s) monitor             │
+│  • Region: AWS Singapore  │    │  • Interval: 5 minutes         │
+│  • Storage limit: 0.5 GB  │    │  • Prevents cold starts        │
+└───────────────────────────┘    └────────────────────────────────┘
 ```
 
-┌─────────────────────────────────────────────────────────┐
-│                   Bitwarden Clients                     │
-│     (Browser Extension / Android / iOS / Desktop)       │
-└──────────────────────────┬──────────────────────────────┘
-│ HTTPS (TLS 1.3)
-▼
-┌─────────────────────────────────────────────────────────┐
-│                    Render Web Service                   │
-│   • Image: vaultwarden/server:latest (Rust implementation)│
-│   • URL: [https://vaultwarden-r4ro.onrender.com](https://www.google.com/url?sa=E&source=gmail&q=https://vaultwarden-r4ro.onrender.com)         │
-│   • Memory Footprint: ~20–30 MB RAM                     │
-└─────────────┬─────────────────────────────▲─────────────┘
-│ Encrypted SSL               │ 5-min HTTP Ping
-▼                             │ (Prevents Sleep)
-┌───────────────────────────┐ ┌─────────────┴─────────────┐
-│    Neon.tech PostgreSQL   │ │        UptimeRobot        │
-│  • Serverless Database    │ │  • HTTP/S Monitor         │
-│  • Region: AWS Singapore  │ │  • Interval: 5 minutes    │
-│  • Storage Limit: 0.5 GB  │ │  • Prevents cold starts   │
-└───────────────────────────┘ └───────────────────────────┘
+### Why this stack?
 
-```
-
-### Why This Stack?
-
-* **Vaultwarden (Server):** An ultra-lightweight, open-source rewrite of Bitwarden written in **Rust**. It uses ~30 MB of RAM (compared to Bitwarden's official .NET stack which requires ~2 GB), unlocking **all Bitwarden Premium features for free** (including integrated 2FA/TOTP generation and emergency access).
-* **Render (Compute):** Provides free cloud container hosting (512 MB RAM, 750 free hours/month).
-* **Neon.tech (Database):** Serverless PostgreSQL database with 0.5 GB (500 MB) of free storage.
-* **UptimeRobot (Keep-Alive):** Pings the Render service every 5 minutes to prevent Render's free tier from going to sleep after 15 minutes of inactivity, guaranteeing **0ms cold-start latency**.
+- **Vaultwarden (server):** an ultra-lightweight, open-source rewrite of the Bitwarden server, written in **Rust**. It runs on ~30 MB of RAM — versus roughly 2 GB for Bitwarden's official .NET stack — while unlocking all Bitwarden Premium features for free, including integrated 2FA/TOTP code generation and emergency access.
+- **Render (compute):** free cloud container hosting (512 MB RAM, 750 free hours/month).
+- **Neon.tech (database):** serverless PostgreSQL with 0.5 GB (500 MB) of free storage.
+- **UptimeRobot (keep-alive):** pings the Render service every 5 minutes so it never hits Render's 15-minute inactivity sleep timer, keeping cold-start latency effectively at zero.
 
 ---
 
 ## 🛠️ Step-by-Step Setup Guide
 
-### Step 1: Create the Managed Database (Neon.tech)
+### Step 1 — Create the managed database (Neon.tech)
 
-1. Log into [Neon.tech](https://neon.tech) and create a new project named **`vaultwarden`**.
-2. Select **AWS Asia Pacific 1 (Singapore)** (or your nearest low-latency region).
+1. Log into [Neon.tech](https://neon.tech) and create a new project named `vaultwarden`.
+2. Select **AWS Asia Pacific 1 (Singapore)** — or whichever region is closest to you for lowest latency.
 3. On the **Project Dashboard**, locate your **Connection String**.
-4. Select **PostgreSQL** and copy the URI format:
+4. Select **PostgreSQL** and copy the URI, which looks like:
+
    ```text
    postgresql://neondb_owner:<PASSWORD>@<ENDPOINT>.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+   ```
 
-```
-
-*(Ensure `?sslmode=require` is appended to guarantee encrypted transport).*
+   Make sure `?sslmode=require` is appended, to guarantee encrypted transport to the database.
 
 ---
 
-### Step 2: Deploy Vaultwarden Container (Render)
+### Step 2 — Deploy the Vaultwarden container (Render)
 
 1. Log into [Render.com](https://render.com) and click **New +** → **Web Service**.
 2. Choose **Existing Image** and enter:
-```text
-vaultwarden/server:latest
 
-```
-
+   ```text
+   vaultwarden/server:latest
+   ```
 
 3. Set the service parameters:
-* **Name:** `vaultwarden`
-* **Region:** Singapore / Asia Pacific (matching Neon for lowest latency)
-* **Instance Type:** `Free`
+   - **Name:** `vaultwarden`
+   - **Region:** Singapore / Asia Pacific (matching Neon, for lowest latency)
+   - **Instance Type:** `Free`
 
+4. Scroll down to **Environment Variables** and add the following:
 
-4. Scroll down to **Environment Variables** and add the following keys:
+   | Environment Variable | Value | Purpose |
+   |---|---|---|
+   | `DATABASE_URL` | `postgresql://neondb_owner:...@.../neondb?sslmode=require` | Connection string to your Neon PostgreSQL database |
+   | `SIGNUPS_ALLOWED` | `true` | Temporarily enables account registration (disable after Step 4) |
+   | `WEBSOCKET_ENABLED` | `true` | Enables real-time sync notifications between browser/app clients |
+   | `IP_HEADER` | `X-Forwarded-For` | Correctly parses client IPs from behind Render's reverse proxy |
 
-| Environment Variable | Value | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | `postgresql://neondb_owner:.../neondb?sslmode=require` | Direct connection link to Neon PostgreSQL |
-| `SIGNUPS_ALLOWED` | `true` | Temporarily enables account registration |
-| `WEBSOCKET_ENABLED` | `true` | Enables real-time browser/app sync notifications |
-| `IP_HEADER` | `X-Forwarded-For` | Correctly parses client IP addresses behind Render's reverse proxy |
-
-5. Click **Create Web Service**. Wait 1–2 minutes for the initial build and database table migration to complete until status displays **Deploy live**.
-6. Note your live app URL (e.g., `https://vaultwarden-r4ro.onrender.com`).
+5. Click **Create Web Service** and wait 1–2 minutes for the initial build and database migration to finish, until the status shows **Deploy live**.
+6. Note your live app URL (e.g. `https://vaultwarden-r4ro.onrender.com`) — you'll need it for the next steps.
 
 ---
 
-### Step 3: Prevent Container Sleep (UptimeRobot)
+### Step 3 — Prevent the container from sleeping (UptimeRobot)
 
-Render puts free containers to sleep after 15 minutes without web requests. We bypass this using UptimeRobot:
+Render puts free web services to sleep after 15 minutes without incoming requests. Bypass this with a keep-alive monitor:
 
 1. Log into [UptimeRobot.com](https://uptimerobot.com) and click **Add New Monitor**.
-2. Configure the monitor details:
-* **Monitor Type:** `HTTP(s)`
-* **Friendly Name:** `Vaultwarden Render`
-* **URL (or IP):** `https://vaultwarden-r4ro.onrender.com`
-* **Monitoring Interval:** `Every 5 minutes`
-
-
+2. Configure:
+   - **Monitor Type:** `HTTP(s)`
+   - **Friendly Name:** `Vaultwarden Render`
+   - **URL (or IP):** `https://vaultwarden-r4ro.onrender.com`
+   - **Monitoring Interval:** `Every 5 minutes`
 3. Click **Create Monitor**.
-4. UptimeRobot will now ping your instance around the clock. Because the interval is 5 minutes, Render's 15-minute idle timer will **never** trigger.
+
+UptimeRobot now pings your instance around the clock. Since the interval (5 min) is shorter than Render's idle timeout (15 min), the sleep timer never triggers.
 
 ---
 
-### Step 4: Initial Account Creation & Security Hardening
+### Step 4 — Initial account creation & security hardening
 
-> ⚠️ **CRITICAL SECURITY STEP:** Do not leave public signups enabled on a self-hosted instance!
+> ⚠️ **Critical security step:** don't leave public signups enabled on a self-hosted instance any longer than necessary.
 
-1. Open your live application URL (`https://vaultwarden-r4ro.onrender.com`) in your web browser.
-2. Click **Create Account**, enter your primary email, and set a high-entropy **Master Password**.
-3. Immediately log into your account, go to **Account Settings** → **Security** → **Two-Step Login**, and enable 2FA using an external authenticator app (e.g., Aegis, 2FAS, or Ente Auth).
-4. Save your **2FA Recovery Code** offline.
-5. **Lock Down Signups:**
-* Return to your **Render Dashboard** → **Environment**.
-* Change `SIGNUPS_ALLOWED` from `true` to **`false`**.
-* Click **Save Changes**. Render will automatically redeploy the service with signups permanently closed.
-
-
+1. Open your live app URL (e.g. `https://vaultwarden-r4ro.onrender.com`) in a browser.
+2. Click **Create Account**, enter your email, and set a high-entropy master password.
+3. Log in, then go to **Account Settings → Security → Two-Step Login** and enable 2FA via an authenticator app (e.g. Aegis, 2FAS, or Ente Auth).
+4. Save your 2FA recovery code somewhere offline and safe.
+5. **Lock down signups:**
+   - Return to your **Render Dashboard → Environment**.
+   - Change `SIGNUPS_ALLOWED` from `true` to `false`.
+   - Click **Save Changes** — Render will automatically redeploy with signups permanently closed.
 
 ---
 
-### Step 5: Connecting Bitwarden Clients & Importing Data
+### Step 5 — Connecting Bitwarden clients & importing data
 
-#### Browser Extensions & Mobile Apps:
+**Browser extensions & mobile apps:**
 
-1. Download the official Bitwarden extension or mobile application (Android/iOS).
-2. On the login screen, click the **Gear Icon ⚙️ (Settings)** at the top.
-3. In the **Server URL** field, enter your full domain:
-```text
-[https://vaultwarden-r4ro.onrender.com](https://vaultwarden-r4ro.onrender.com)
+1. Install the official Bitwarden extension or mobile app (Android/iOS).
+2. On the login screen, click the gear icon (⚙️ Settings) at the top.
+3. In the **Server URL** field, enter your full domain, e.g.:
 
-```
+   ```text
+   https://vaultwarden-r4ro.onrender.com
+   ```
 
+4. Click **Save**, then log in with your master password and 2FA code.
 
-4. Click **Save**, then log in using your Master Password and 2FA.
+**Importing existing vault data:**
 
-#### Importing Existing Vault Data:
-
-1. In the Vaultwarden Web Vault, navigate to **Tools** → **Import Data**.
-2. Choose your format (`Bitwarden (json)`, `Bitwarden (csv)`, `1Password`, `LastPass`, etc.).
-3. Choose the export file and click **Import**.
-4. **2FA / TOTP Integration:** All imported 2FA keys (`totp`) will immediately render as live, rotating 6-digit codes directly in the client apps. When logging into sites, the Bitwarden extension will automatically copy the TOTP code to your clipboard upon autofill (`Ctrl + V` to paste).
-
----
-
-## 🔒 Security & Encryption Architecture
-
-* **Zero-Knowledge Architecture:** Master Key generation and cryptographic operations occur entirely client-side using **PBKDF2** (or Argon2) and **AES-256 bit encryption**.
-* **Database Security:** What resides in Neon PostgreSQL is purely encrypted ciphertext. Neither Neon, Render, nor any third party can inspect your stored passwords or notes.
-* **SSL/TLS Mandatory:** Render automatically provisions Let's Encrypt TLS certificates. All HTTP traffic is force-redirected over HTTPS.
+1. In the Vaultwarden web vault, go to **Tools → Import Data**.
+2. Choose your source format (`Bitwarden (json)`, `Bitwarden (csv)`, `1Password`, `LastPass`, etc.).
+3. Select your export file and click **Import**.
+4. Any imported TOTP/2FA secrets immediately render as live, rotating 6-digit codes in the client apps. When autofilling logins, Bitwarden automatically copies the current TOTP code to your clipboard for pasting.
 
 ---
 
-## 📊 Resource Usage & Storage Footprint
+## 🔒 Security & encryption architecture
 
-* **RAM Usage:** ~25 MB to 35 MB / 512 MB available on Render Free Tier.
-* **Database Storage:** Credentials, URLs, notes, and 2FA seeds use compressed text formats. A typical vault with 500+ items occupies **< 2 MB** of Neon's **500 MB** free tier.
-* **Compute Hours:** 24/7 continuous uptime uses 744 hours per 31-day month, well within Render's 750 free monthly compute hours.
-
----
-
-## 📁 Recommended Disaster Recovery & Backups
-
-1. **Encrypted Vault Exports:** Regularly export your vault from **Tools** → **Export Vault** as an encrypted `.json` file and back it up to secure storage.
-2. **Neon Point-in-Time Recovery:** Neon retains database state history, allowing you to roll back tables or branch data from the Neon console if needed.
+- **Zero-knowledge architecture:** master-key derivation and all cryptographic operations happen client-side, using PBKDF2 (or Argon2) plus AES-256 encryption.
+- **Database security:** what's stored in Neon PostgreSQL is encrypted ciphertext only — neither Neon, Render, nor anyone else can read your passwords or notes.
+- **Mandatory TLS:** Render automatically provisions Let's Encrypt certificates, and all HTTP traffic is force-redirected to HTTPS.
 
 ---
 
-*Enjoy your fully self-hosted, private, zero-cost password & 2FA manager!*
+## 📊 Resource usage & storage footprint
+
+- **RAM usage:** roughly 25–35 MB out of the 512 MB available on Render's free tier.
+- **Database storage:** credentials, URLs, notes, and 2FA seeds are stored as compact text. A vault with 500+ items typically uses under 2 MB of Neon's 500 MB free tier.
+- **Compute hours:** running 24/7 uses about 744 hours in a 31-day month — within Render's 750 free monthly hours, but with very little headroom if you run other free services on the same account.
+
+---
+
+## 📁 Recommended disaster recovery & backups
+
+1. **Encrypted vault exports:** periodically export your vault from **Tools → Export Vault** as an encrypted `.json` file and store it somewhere safe outside of Render/Neon.
+2. **Neon point-in-time recovery:** Neon retains database history, letting you roll back or branch data from the Neon console if something goes wrong.
+
+---
+
+*Enjoy your fully self-hosted, private, zero-cost password and 2FA manager!*
