@@ -18,7 +18,7 @@ A complete step-by-step guide to deploying, configuring, and hardening a **free,
 ┌───────────────────────────────────────────────────────┐
 │                     Render Web Service                │
 │ Image: vaultwarden/server:latest (Rust)               │
-│ URL: https://vaultwarden-r4ro.onrender.com            │
+│ URL: https://vaultwarden-r4ro.onrender.com (example)  │
 │ Memory footprint: ~20-30 MB RAM                       │
 └─────────────┬───────────────────────────────▲─────────┘
               │ Encrypted SSL                 │ 5-min HTTP ping
