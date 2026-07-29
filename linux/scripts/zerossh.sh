@@ -22,6 +22,7 @@
 #   sudo ./zerossh.sh <NETWORK_ID>      # joins a specific network instead
 #   sudo ./zerossh.sh --no-join         # install/enable only, skip join
 #
+
 set -euo pipefail
 
 # ---------- helpers ----------
@@ -64,9 +65,7 @@ detect_distro() {
     echo "arch"
   elif command -v apt-get &>/dev/null; then
     echo "debian"
-  elif command -v dnf &>/dev/null; then
-    echo "fedora"
-  elif command -v yum &>/dev/null; then
+  elif command -v dnf &>/dev/null || command -v yum &>/dev/null; then
     echo "fedora"
   else
     echo "unknown"
@@ -77,8 +76,7 @@ DISTRO=$(detect_distro)
 log "Detected distro family: ${c_yellow}${DISTRO}${c_reset}"
 
 if [[ "$DISTRO" == "unknown" ]]; then
-  err "Could not detect a supported package manager (pacman / apt / dnf / yum)."
-  err "Supported: Arch-based, Debian/Ubuntu-based, Fedora/RHEL-based."
+  err "Could not detect a supported package manager."
   exit 1
 fi
 
@@ -86,22 +84,17 @@ fi
 install_packages() {
   case "$DISTRO" in
     arch)
-      log "Syncing and upgrading package database (pacman -Syu)..."
-      pacman -Syu --noconfirm
-      log "Installing zerotier-one and openssh..."
-      pacman -S --needed --noconfirm zerotier-one openssh
+      log "Installing zerotier-one and openssh via pacman..."
+      pacman -Sy --needed --noconfirm zerotier-one openssh
       ;;
     debian)
-      log "Updating apt cache..."
+      log "Updating apt cache and installing packages..."
       export DEBIAN_FRONTEND=noninteractive
       apt-get update -y
-      log "Installing openssh-server..."
-      apt-get install -y openssh-server curl
+      apt-get install -y openssh-server curl ufw
       if ! command -v zerotier-cli &>/dev/null; then
-        log "Installing ZeroTier via official install script (not in default apt repos)..."
+        log "Installing ZeroTier via official script..."
         curl -s https://install.zerotier.com | bash
-      else
-        ok "zerotier-cli already present."
       fi
       ;;
     fedora)
@@ -110,14 +103,11 @@ install_packages() {
       log "Installing openssh-server via ${PM}..."
       "$PM" install -y openssh-server curl
       if ! command -v zerotier-cli &>/dev/null; then
-        log "Installing ZeroTier via official install script (not in default dnf/yum repos)..."
         curl -s https://install.zerotier.com | bash
-      else
-        ok "zerotier-cli already present."
       fi
       ;;
   esac
-  ok "Package installation step complete."
+  ok "Package installation complete."
 }
 
 # ---------- enable services ----------
@@ -125,101 +115,67 @@ enable_services() {
   log "Enabling and starting ZeroTier..."
   systemctl enable --now zerotier-one.service
 
-  log "Enabling and starting SSH..."
-  local units
-  units="$(systemctl list-unit-files --no-legend --no-pager 2>/dev/null || true)"
-
-  if echo "$units" | grep -q '^sshd\.service'; then
-    systemctl enable --now sshd.service
-  elif echo "$units" | grep -q '^ssh\.service'; then
-    systemctl enable --now ssh.service
+  log "Enabling and starting SSH service..."
+  # Try sshd.service first (Arch/Fedora), then ssh.service (Debian/Ubuntu)
+  if systemctl enable --now sshd.service 2>/dev/null; then
+    ok "Enabled sshd.service"
+  elif systemctl enable --now ssh.service 2>/dev/null; then
+    ok "Enabled ssh.service"
   else
-    if systemctl enable --now ssh.service 2>/dev/null; then
-      :
-    elif systemctl enable --now sshd.service 2>/dev/null; then
-      :
-    else
-      warn "Could not find sshd.service or ssh.service unit — check your openssh install."
-    fi
+    warn "Could not automatically enable SSH service. Please check manually."
   fi
-  ok "Services enabled."
 }
 
 # ---------- firewall ----------
 configure_firewall() {
-  local handled=false
-
   if command -v ufw &>/dev/null; then
-    if ufw status | head -n1 | grep -qi "Status: active"; then
-      log "ufw is active — opening ports 22/tcp and 9993/udp..."
+    if ufw status | grep -qi "Status: active"; then
+      log "ufw is active — allowing SSH and ZeroTier..."
       ufw allow 22/tcp comment 'SSH'
       ufw allow 9993/udp comment 'ZeroTier'
-      ok "ufw rules added (idempotent — safe to re-run)."
-    else
-      ok "ufw is installed but inactive — no rules needed, traffic isn't being filtered."
+      ok "ufw rules added."
     fi
-    handled=true
   fi
 
   if command -v firewall-cmd &>/dev/null; then
-    if [[ "$(firewall-cmd --state 2>/dev/null)" == "running" ]]; then
-      log "firewalld is active — opening ports 22/tcp and 9993/udp..."
+    if firewall-cmd --state &>/dev/null; then
+      log "firewalld is active — opening SSH and ZeroTier..."
       firewall-cmd --permanent --add-service=ssh
       firewall-cmd --permanent --add-port=9993/udp
-      if firewall-cmd --reload; then
-        ok "firewalld rules added and reloaded."
-      else
-        err "firewalld reload failed — rules were staged but not applied. Check 'firewall-cmd --get-active-zones'."
-      fi
-    else
-      ok "firewalld is installed but not running — no rules needed, traffic isn't being filtered."
+      firewall-cmd --reload
+      ok "firewalld rules added."
     fi
-    handled=true
-  fi
-
-  if [[ "$handled" == false ]]; then
-    warn "Neither ufw nor firewalld is installed — nothing to configure."
-    warn "Ports should already be reachable unless something else is filtering traffic."
   fi
 }
 
 # ---------- join network ----------
 join_network() {
   if [[ "$JOIN" == false ]]; then
-    warn "Skipping ZeroTier network join (--no-join given)."
+    warn "Skipping ZeroTier network join."
     return
   fi
 
-  if ! [[ "$NETWORK_ID" =~ ^[0-9a-fA-F]{16}$ ]]; then
-    err "'$NETWORK_ID' doesn't look like a valid ZeroTier Network ID (should be 16 hex characters)."
-    err "Skipping join — run later with: sudo zerotier-cli join <NETWORK_ID>"
-    return
-  fi
+  log "Waiting for ZeroTier daemon socket..."
+  for i in {1..10}; do
+    if zerotier-cli info &>/dev/null; then break; fi
+    sleep 1
+  done
 
   log "Joining ZeroTier network ${NETWORK_ID}..."
   zerotier-cli join "$NETWORK_ID"
-  ok "Join request sent. Remember to authorize this device in ZeroTier Central:"
-  ok "  https://my.zerotier.com/network/${NETWORK_ID}"
+  ok "Join request sent."
 }
 
 # ---------- summary ----------
 print_summary() {
   echo
   echo "============================================================"
-  echo " Setup summary"
+  echo " Setup Summary"
   echo "============================================================"
   echo " Distro family : $DISTRO"
   echo " ZeroTier node : $(zerotier-cli info 2>/dev/null || echo 'unavailable')"
-  echo " ZeroTier nets :"
-  zerotier-cli listnetworks 2>/dev/null | sed 's/^/   /' || echo "   (none yet / daemon still starting)"
-  echo " SSH service   : $(systemctl is-active sshd.service 2>/dev/null || systemctl is-active ssh.service 2>/dev/null || echo 'unknown')"
-  echo " SSH listening : $(ss -tlnp 2>/dev/null | grep ':22 ' || echo 'check manually with: ss -tlnp | grep 22')"
+  echo " SSH Status    : $(systemctl is-active sshd 2>/dev/null || systemctl is-active ssh 2>/dev/null || echo 'inactive')"
   echo "============================================================"
-  echo
-  ok "Done. If you just joined a network, authorize the device at:"
-  echo "    https://my.zerotier.com/network/<your-network-id>"
-  ok "Then test SSH from another ZeroTier-connected machine with:"
-  echo "    ssh $(logname 2>/dev/null || echo '<user>')@<zerotier-ip>"
 }
 
 # ---------- main ----------
