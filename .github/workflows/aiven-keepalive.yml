@@ -1,0 +1,39 @@
+name: Aiven Keepalive
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping-db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install PostgreSQL driver
+        run: pip install psycopg2-binary
+
+      - name: Execute Keepalive Query
+        env:
+          DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+        run: |
+          python -c "
+          import os
+          import psycopg2
+          
+          try:
+              conn = psycopg2.connect(os.environ['DATABASE_URL'])
+              cur = conn.cursor()
+              cur.execute('SELECT 1;')
+              result = cur.fetchone()
+              print(f'Database ping successful! Result: {result}')
+              cur.close()
+              conn.close()
+          except Exception as e:
+              print(f'Failed to connect or query database: {e}')
+              exit(1)
+          "
