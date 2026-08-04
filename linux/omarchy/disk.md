@@ -154,9 +154,9 @@ sudo mount -a        # mounts everything in fstab
 | /tmp on tmpfs | already set |
 | btrfs compression (zstd) | already set |
 | Free-space headroom | already set (~13% used) |
-| TRIM | set - async discard active (kernel default since 6.2) + `allow-discards` in kernel cmdline (active after next reboot) |
+| TRIM | set - async discard active (kernel default since 6.2) + `allow-discards` in kernel cmdline (active - fstrim verified after reboot) |
 | smartd | not set (deliberately skipped - health checks done on request) |
-| btrfs scrub timer | set - monthly scrub on `/` enabled |
+| btrfs scrub timer | set - monthly scrub on `/` enabled (last ran Aug 5, next Sep 1) |
 | noatime fstab mounts (sdc1 / sdb2) | not set (deliberately skipped - data drives stay unmounted; ntfs-3g not installed) |
 
-**Note:** async discard is active on `/`, `/home`, `/var/cache/pacman/pkg`, `/var/log` as the kernel default (6.2+) - no fstab option needed. The `allow-discards` change to the kernel command line (in `/etc/kernel/cmdline` and `/boot/limine.conf`) takes effect at the next reboot - until then `fstrim /` still reports "discard operation is not supported". The weekly `trim.sh`/`trim.timer` were removed as redundant. `/boot` (vfat) no longer gets trimmed; its writes are rare so the impact is negligible.
+**Note:** async discard is active on `/`, `/home`, `/var/cache/pacman/pkg`, `/var/log` as the kernel default (6.2+) - no fstab option needed. `allow-discards` is set in the kernel command line (`/etc/kernel/cmdline` and `/boot/limine.conf`, all entries including snapshots) and confirmed working post-reboot: `fstrim /` trims successfully and the LUKS device reports `discard_granularity=512`. The weekly `trim.sh`/`trim.timer` were removed as redundant. `/boot` (vfat) no longer gets trimmed; its writes are rare so the impact is negligible.
