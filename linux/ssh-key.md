@@ -19,6 +19,7 @@ ssh-keygen -t ed25519
 ```
 - Press Enter to accept the default file location (`~/.ssh/id_ed25519`).
 - Enter a passphrase when prompted (you can leave it empty, but a passphrase means even a stolen key file is useless without it).
+- The `-C "email@example.com"` comment is **optional** - it is only a label to tell keys apart, not an email requirement, and not used for authentication. Add it if you want: `ssh-keygen -t ed25519 -C "label-here"`.
 
 This creates two files:
 - `~/.ssh/id_ed25519` - the private key. **Never share this with anyone, ever.**
