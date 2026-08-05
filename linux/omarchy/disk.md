@@ -160,3 +160,42 @@ sudo mount -a        # mounts everything in fstab
 | noatime fstab mounts (sdc1 / sdb2) | not set (deliberately skipped - data drives stay unmounted; ntfs-3g not installed) |
 
 **Note:** async discard is active on `/`, `/home`, `/var/cache/pacman/pkg`, `/var/log` as the kernel default (6.2+) - no fstab option needed. `allow-discards` is set in the kernel command line (`/etc/kernel/cmdline` and `/boot/limine.conf`, all entries including snapshots) and confirmed working post-reboot: `fstrim /` trims successfully and the LUKS device reports `discard_granularity=512`. The weekly `trim.sh`/`trim.timer` were removed as redundant. `/boot` (vfat) no longer gets trimmed; its writes are rare so the impact is negligible.
+
+---
+
+## How to enable allow-discards on this machine (Omarchy / Limine + LUKS root)
+
+**Why this file pair:** `/etc/kernel/cmdline` is the durable source Omarchy uses to build the main boot entry (survives kernel updates). `/boot/limine.conf` is what Limine actually reads at boot, so both must match.
+
+**Step 1 - add `:allow-discards` to the cryptdevice parameter** (both files, same one-liner):
+```
+sudo sed -i 's#cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root#cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root:allow-discards#g' /etc/kernel/cmdline
+sudo sed -i 's#cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root#cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root:allow-discards#g' /boot/limine.conf
+```
+The second one patches every entry (main + snapshots) at once.
+
+**Step 2 - verify the files:**
+```
+cat /etc/kernel/cmdline
+sudo cat /boot/limine.conf | grep -n cryptdevice
+```
+
+**Step 3 - reboot** (cmdline changes only apply at boot).
+
+**Step 4 - verify it is live:**
+```
+cat /proc/cmdline                                    # must contain :allow-discards
+cat /sys/block/dm-0/queue/discard_granularity        # must print 512, not 0
+sudo fstrim -v /                                     # must trim bytes, not error out
+```
+
+**Gotcha (snapshot entries):** `limine-snapper-sync` auto-regenerates snapshot boot entries when snapshots change and can drop the option from older entries (observed here - only the newest snapshot keeps it). Booting an old snapshot entry still works; TRIM is just disabled for that boot. To make **new** snapshot entries carry it permanently, add to `/etc/limine-snapper-sync.conf`:
+```
+SNAPSHOT_KERNEL_PARAMETERS-=cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root
+SNAPSHOT_KERNEL_PARAMETERS+=cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root:allow-discards
+```
+and re-run the sed above to re-patch existing entries.
+
+**Tradeoff reminder:** allow-discards reveals free vs. used sectors to someone holding the decryption key - accepted on this machine.
+
+**Verified state (Aug 5):** `allow-discards` is live in `/proc/cmdline`, `/etc/kernel/cmdline`, and the main Limine entry; `fstrim /` trims ~3.7 GiB; `dm-0 discard_granularity=512`; snapshot entries 2-5 currently lack it.
