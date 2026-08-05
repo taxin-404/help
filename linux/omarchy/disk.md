@@ -167,7 +167,13 @@ sudo mount -a        # mounts everything in fstab
 
 **Why this file pair:** `/etc/kernel/cmdline` is the durable source Omarchy uses to build the main boot entry (survives kernel updates). `/boot/limine.conf` is what Limine actually reads at boot, so both must match.
 
-**Step 1 - add `:allow-discards` to the cryptdevice parameter** (both files, same one-liner):
+**Step 0 - find the exact `cryptdevice` string on your machine:**
+```
+cat /proc/cmdline
+```
+Copy the whole `cryptdevice=...` parameter (from `cryptdevice=` up to the next space). Append `:allow-discards` to the very end of it, then use that string in the sed commands below.
+
+**Step 1 - add `:allow-discards` to the cryptdevice parameter** (both files, same one-liner; the PARTUUID in the commands below is this machine's - on another install, substitute the value from Step 0):
 ```
 sudo sed -i 's#cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root#cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root:allow-discards#g' /etc/kernel/cmdline
 sudo sed -i 's#cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root#cryptdevice=PARTUUID=e6dbc0dc-d0ee-438f-83e8-01aa8172818f:root:allow-discards#g' /boot/limine.conf
