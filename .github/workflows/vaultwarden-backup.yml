@@ -14,7 +14,7 @@ jobs:
 
       - name: Dump Aiven PostgreSQL DB
         env:
-          AIVEN_PG_URI: ${{ secrets.AIVEN_PG_URI }}
+          AIVEN_PG_URI: ${{ secrets.AIVEN_DATABASE_URL }}
         run: |
           mkdir -p backup_dir
           pg_dump "$AIVEN_PG_URI" -F c -b -v -f backup_dir/vaultwarden_aiven_$(date +%Y%m%d_%H%M%S).dump
