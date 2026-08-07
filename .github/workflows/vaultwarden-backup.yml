@@ -2,15 +2,17 @@ name: Vaultwarden Offsite Backup
 
 on:
   schedule:
-    - cron: '0 2 * * *' # Runs daily at 2 AM UTC
+    - cron: '0 2 * * *'
   workflow_dispatch:
 
 jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - name: Install PostgreSQL Client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Install Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client awscli
 
       - name: Dump Aiven PostgreSQL DB
         env:
@@ -19,14 +21,13 @@ jobs:
           mkdir -p backup_dir
           pg_dump "$AIVEN_PG_URI" -F c -b -v -f backup_dir/vaultwarden_aiven_$(date +%Y%m%d_%H%M%S).dump
 
-      - name: Sync Backup to Cloudflare R2
-        uses: jakejarvis/s3-sync-action@master
-        with:
-          args: --follow-symlinks
+      - name: Upload Dump to Cloudflare R2
         env:
-          AWS_S3_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_S3_ENDPOINT: ${{ secrets.R2_ENDPOINT_URL }}
-          SOURCE_DIR: 'backup_dir'
-          DEST_DIR: 'vaultwarden-backups'
+          ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          aws s3 sync backup_dir/ s3://$BUCKET_NAME/vaultwarden-backups/ \
+            --endpoint-url $ENDPOINT_URL \
+            --region auto
