@@ -1,0 +1,31 @@
+# .github/workflows/vaultwarden-backup.yml
+name: Vaultwarden Offsite Backup
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Runs daily at 2 AM UTC
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL Client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Dump Aiven PostgreSQL DB
+        env:
+          AIVEN_PG_URI: ${{ secrets.AIVEN_PG_URI }}
+        run: |
+          pg_dump "$AIVEN_PG_URI" -F c -b -v -f vaultwarden_db.dump
+
+      - name: Upload Dump to Cloudflare R2 / S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl private --follow-symlinks
+        env:
+          AWS_S3_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_S3_ENDPOINT: ${{ secrets.R2_ENDPOINT_URL }}
+          DEST_DIR: 'vaultwarden-backups/'
