@@ -14,10 +14,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl unzip ca-certificates lsb-release gnupg
 
-          # Add official PostgreSQL PGDG Repository including pgdg-testing for v18
+          # Add official PostgreSQL PGDG Repository
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main pgdg-testing" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
 
           sudo apt-get update
           sudo apt-get install -y postgresql-client-18
@@ -32,7 +32,7 @@ jobs:
           AIVEN_PG_URI: ${{ secrets.AIVEN_DATABASE_URL }}
         run: |
           mkdir -p backup_dir
-          pg_dump "$AIVEN_PG_URI" -F c -b -v -f backup_dir/vaultwarden_aiven_$(date +%Y%m%d_%H%M%S).dump
+          /usr/lib/postgresql/18/bin/pg_dump "$AIVEN_PG_URI" -F c -b -v -f backup_dir/vaultwarden_aiven_$(date +%Y%m%d_%H%M%S).dump
 
       - name: Upload Dump to Cloudflare R2
         env:
