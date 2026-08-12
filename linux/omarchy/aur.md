@@ -1,3 +1,4 @@
+```shell
 git clone ssh://aur@aur.archlinux.org/package.git
 cd ~/Projects/package
 
@@ -15,3 +16,4 @@ makepkg --printsrcinfo > .SRCINFO
 git add .SRCINFO
 git commit -m "Update pkgrel"
 git push origin master
+```
