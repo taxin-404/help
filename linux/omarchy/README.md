@@ -19,7 +19,7 @@ yay -Sc
 
 install:
 ```bash
-yay -S --needed ab-download-manager-bin brave-origin-bin cliamp obsidian opentabletdriver stacer-bin qbittorrent cmake npm nodejs proton-vpn-gtk-app terabox-bin anydesk-bin superfile bclone
+yay -S --needed ab-download-manager-bin obsidian opentabletdriver stacer-bin qbittorrent cmake proton-vpn-gtk-app terabox-bin anydesk-bin bclone googledot-cursor-theme paru apple_cursor hyprmod
 ```
 
 ## avro setup
