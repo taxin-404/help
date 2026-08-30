@@ -45,7 +45,7 @@ npm
 bash -c "$(wget -q https://raw.githubusercontent.com/asifakonjee/openbangla-script/master/fcitx5.sh -O -)"
 ```
 
-## mount
+## `sn /etc/fstab`
 ```conf
 # /dev/sdb1
 UUID=3cb7e966-2a00-40b4-87f8-d8e62e710b07  /mnt/backup  btrfs  defaults,nofail,compress=zstd  0  0
