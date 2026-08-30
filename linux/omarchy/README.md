@@ -38,7 +38,8 @@ aether \
 rclone-manager \
 nodejs \
 npm \
-morphe-desktop 
+morphe-desktop \
+lan-mouse
 ```
 
 ## avro setup
