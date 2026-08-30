@@ -30,14 +30,15 @@ proton-vpn-gtk-app \
 terabox-bin \
 anydesk-bin \
 bclone \
+rclone \
 googledot-cursor-theme \
-paru \
 apple_cursor \
 hyprmod \
 aether \
 rclone-manager \
 nodejs \
-npm
+npm \
+morphe-desktop 
 ```
 
 ## avro setup
