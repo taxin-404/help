@@ -10,6 +10,13 @@
 # Run as root, on the machine being set up. Safe to re-run (idempotent).
 #
 # Optional config: /etc/provision-devices.conf  (see provision-devices.conf.example)
+#
+# One-liner (also works without a config file, defaults to this network):
+#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/taxin-404/help/main/provision-devices.sh)"
+#
+# With overrides, e.g. temporarily allow password login for a box without keys:
+#   curl -fsSL https://raw.githubusercontent.com/taxin-404/help/main/provision-devices.sh \
+#     | sudo env SSH_BIND=zt SSH_PASSWORD_AUTH=yes bash
 
 set -euo pipefail
 
@@ -27,7 +34,7 @@ if [[ -r "$CONFIG" ]]; then
 fi
 
 # --- Settings (env or config file override) ---------------------------------
-ZEROTIER_NETWORK="${ZEROTIER_NETWORK:?ZEROTIER_NETWORK must be set (env or config)}"
+ZEROTIER_NETWORK="${ZEROTIER_NETWORK:-633e31d8a2e3401d}"   # default; override via env
 SSH_BIND="${SSH_BIND:-zt}"              # zt = only via ZeroTier | any | off
 SSH_PASSWORD_AUTH="${SSH_PASSWORD_AUTH:-no}"
 SSH_AUTHORIZED_KEYS_FILE="${SSH_AUTHORIZED_KEYS_FILE:-}"
@@ -54,9 +61,10 @@ DISTRO="$(detect_distro)"
 [[ "$DISTRO" != "unknown" ]] || die "unsupported distribution"
 log "distro: $DISTRO"
 
-TARGET_USER="${PROVISION_USER:-}"
+TARGET_USER="${PROVISION_USER:-${SUDO_USER:-}}"
 if [[ -z "$TARGET_USER" ]]; then
-    for u in taxin root; do id -u "$u" >/dev/null 2>&1 && TARGET_USER="$u" && break; done
+    # first non-system user (uid >= 1000)
+    TARGET_USER="$(getent passwd 2>/dev/null | awk -F: '$3 >= 1000 && $3 < 65534 {print $1; exit}')"
 fi
 [[ -n "$TARGET_USER" ]] || die "no target user found (set PROVISION_USER)"
 getent passwd "$TARGET_USER" >/dev/null || die "user not found: $TARGET_USER"
