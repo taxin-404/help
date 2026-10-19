@@ -1,0 +1,21 @@
+# Copy to /etc/provision-devices.conf and chmod 600.
+# Contains no secrets: a ZeroTier network ID is not a credential,
+# and SSH public keys are public by definition.
+
+ZEROTIER_NETWORK="633e31d8a2e3401d"
+
+# --- SSH --------------------------------------------------------------------
+# zt  = port 22 reachable ONLY through the ZeroTier interface (default)
+# any = port 22 open on all interfaces
+# off = do not touch SSH at all
+SSH_BIND="zt"
+
+# "no" = key-only login (leave until a public key is installed).
+# "yes" = temporary for first boot when no key exists yet; flip back after.
+SSH_PASSWORD_AUTH="no"
+
+# Optional: file of public keys (one per line) to install into authorized_keys.
+#SSH_AUTHORIZED_KEYS_FILE="/etc/provision-devices/authorized_keys"
+
+# Optional: user that receives the keys. Default: the sudo user.
+#PROVISION_USER="taxin"
