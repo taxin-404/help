@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 #
-# setup-zt-ssh.sh - install ZeroTier + OpenSSH (password login) on Debian/Ubuntu, Fedora, Arch.
+# setup-zt-ssh.sh - install ZeroTier + OpenSSH on Debian/Ubuntu, Fedora, Arch.
+# SSH uses password login and is reachable ONLY through the ZeroTier interface
+# (the firewall blocks port 22 on every other interface, including the LAN).
 #
 # Run straight from GitHub:
-#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/taxin-404/help/main/setup-zt-ssh.sh)"
+#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/taxin-404/help/main/linux/setup-zt-ssh.sh)"
 #
 # Different network ID:
-#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/taxin-404/help/main/setup-zt-ssh.sh)" _ <NETWORK_ID>
+#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/taxin-404/help/main/linux/setup-zt-ssh.sh)" _ <NETWORK_ID>
 #
 # Safe to re-run.
 
@@ -61,6 +63,15 @@ done
 
 zerotier-cli join "$NETWORK"
 
+# name of the ZeroTier network interface (needed for the firewall rule)
+ZT_DEV=""
+for _ in $(seq 15); do
+  ZT_DEV="$(zerotier-cli listnetworks | awk -v n="$NETWORK" '$3==n {print $(NF-1); exit}' || true)"
+  [[ -n "$ZT_DEV" && "$ZT_DEV" != "-" ]] && break
+  sleep 1
+done
+[[ -n "$ZT_DEV" && "$ZT_DEV" != "-" ]] || die "could not find the ZeroTier interface name"
+
 # --- SSH (plain, password login) --------------------------------------------
 install -d -m 0755 /etc/ssh/sshd_config.d
 if ! grep -qE '^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config\.d/' /etc/ssh/sshd_config; then
@@ -82,35 +93,51 @@ sshd -t || { rm -f "$DROPIN"; die "sshd config test failed (drop-in removed)"; }
 systemctl enable --now "$SSH_SVC"
 systemctl reload "$SSH_SVC" 2>/dev/null || systemctl restart "$SSH_SVC"
 
-# --- Firewall: allow SSH (port 22) ------------------------------------------
-open_ssh_firewall() {
-  local out
+# --- Firewall: SSH only on the ZeroTier interface ---------------------------
+restrict_ssh_to_zerotier() {
+  local use_firewalld=0 zones
 
-  # ufw
-  if command -v ufw >/dev/null 2>&1; then
-    out="$(ufw status 2>/dev/null || true)"
-    if [[ "$out" == "Status: active"* ]]; then
-      ufw allow 22/tcp
-      return 0
-    fi
+  if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+    use_firewalld=1
+  elif [[ "$DISTRO" == "fedora" ]]; then
+    dnf install -y firewalld
+    systemctl enable --now firewalld
+    use_firewalld=1
   fi
 
-  # firewalld
-  if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
-    firewall-cmd --permanent --add-service=ssh
+  if (( use_firewalld )); then
+    # firewalld: a dedicated zone for the ZeroTier interface that allows ssh,
+    # and ssh removed from the default zone (LAN)
+    zones="$(firewall-cmd --permanent --get-zones)"
+    if [[ " $zones " != *" zerotier "* ]]; then
+      firewall-cmd --permanent --new-zone=zerotier
+    fi
+    firewall-cmd --permanent --zone=zerotier --add-service=ssh
+    firewall-cmd --permanent --zone=zerotier --change-interface="$ZT_DEV"
+    firewall-cmd --permanent --remove-service=ssh || true
     firewall-cmd --reload
     return 0
   fi
 
-  # raw iptables / nftables: only warn if incoming traffic is dropped by default
-  out=""
-  if command -v iptables >/dev/null 2>&1; then out+="$(iptables -S INPUT 2>/dev/null || true)"; fi
-  if command -v nft >/dev/null 2>&1; then out+="$(nft list ruleset 2>/dev/null || true)"; fi
-  if [[ "$out" == *"-P INPUT DROP"* || "$out" == *"policy drop"* ]]; then
-    echo "WARNING: iptables/nftables drops incoming traffic by default. Allow TCP port 22 manually."
+  # ufw (Ubuntu/Debian/Arch)
+  if ! command -v ufw >/dev/null 2>&1; then
+    case "$DISTRO" in
+      arch)   pacman -S --needed --noconfirm ufw ;;
+      debian) apt-get install -y ufw ;;
+    esac
   fi
+
+  # remove any rule that opens SSH on all interfaces
+  for r in 22/tcp 22 ssh OpenSSH; do
+    ufw delete allow "$r" >/dev/null 2>&1 || true
+  done
+
+  ufw default deny incoming
+  ufw allow in on "$ZT_DEV" to any port 22 proto tcp
+  ufw --force enable
+  systemctl enable ufw
 }
-open_ssh_firewall
+restrict_ssh_to_zerotier
 
 # --- Show the result --------------------------------------------------------
 zerotier-cli listnetworks
