@@ -115,6 +115,7 @@ restrict_ssh_to_zerotier() {
     firewall-cmd --permanent --zone=zerotier --add-service=ssh
     firewall-cmd --permanent --zone=zerotier --change-interface="$ZT_DEV"
     firewall-cmd --permanent --remove-service=ssh || true
+    firewall-cmd --permanent --add-port=9993/udp    # ZeroTier's own port
     firewall-cmd --reload
     return 0
   fi
@@ -134,6 +135,7 @@ restrict_ssh_to_zerotier() {
 
   ufw default deny incoming
   ufw allow in on "$ZT_DEV" to any port 22 proto tcp
+  ufw allow 9993/udp    # ZeroTier's own port
   ufw --force enable
   systemctl enable ufw
 }
