@@ -7,10 +7,13 @@ _Last updated: 2026-11-03. Written so any AI/agent can resume with no prior cont
 - **Goal A:** Make Madwine's compatibility layer (GE-Proton) always run the latest release, via a
   tool living in `github.com/taxin-404/madwine`. **DONE + pushed** (commit `305e8ec`).
 - **Goal B:** Fix live input bugs (mouse left-click dying after a purchase button in fullscreen;
-  keyboard dropping — now reported **in the Madwine launcher**). **NOT yet verified fixed.**
-- **Blocker:** Madwine is still running **GE-Proton11-5**. The attempted switch via
-  `"reuseSteamProton": true` was **inert**. The real fix (repoint `config.json.proton`) is ready
-  but needs Madwine fully closed to apply.
+  keyboard dropping — now reported **in the Madwine launcher**). **Layer switch APPLIED; awaiting
+  relaunch test.**
+- **Status (2026-11-03 21:09):** Madwine (currently closed) is pointed at **GE-Proton11-12** via
+  `config.json.proton` — the `"reuseSteamProton"` route is inert. `GE-Proton11-5` is retained as a
+  rollback. **Next: relaunch Madwine, confirm `PROTONPATH`, and test the bugs.**
+- **Auto-updater:** installed to `~/.local/bin/madwine-compat-update` and enabled as a daily
+  `systemd --user` timer; `madwine-compat-update --check` reports **UP TO DATE**.
 
 ## Root causes established (with evidence)
 
@@ -66,38 +69,37 @@ _Last updated: 2026-11-03. Written so any AI/agent can resume with no prior cont
 - `~/.config/madwine/config.json.preupdate-20261103204441` (manual pre-change copy).
 - The tool writes `config.json.bak.<timestamp>` on each edit.
 
+## Done (2026-11-03)
+
+- GE-Proton11-12 installed into `~/.local/share/madwine/proton/GE-Proton11-12-x86_64`
+  (verified against the cached, SHA-512-checked tarball).
+- `~/.config/madwine/config.json` rewritten: `"proton"` → the 11-12 path, `"reuseSteamProton": false`
+  (backup `config.json.bak.20261103210917`).
+- `GE-Proton11-5-x86_64` kept as rollback; leftover duplicate from Steam's compat dir removed.
+- Tool installed to `~/.local/bin/madwine-compat-update` + daily user timer enabled.
+- `madwine-compat-update --check` → `status: UP TO DATE`.
+
 ## Remaining steps (exact commands)
 
-1. **Close Madwine fully.** Confirm nothing matches:
-   ```bash
-   pgrep -af 'Madwine\.AppImage|/madwine/umu/|wineserver|RobloxPlayerBeta\.exe|Madium\.exe'
-   ```
-   (An idle launcher with no window still counts — it overwrites `config.json` on exit.)
-2. **Move the verified 11-12 into Madwine's own proton dir** (avoids a re-download):
-   ```bash
-   mv ~/.local/share/Steam/compatibilitytools.d/GE-Proton11-12-x86_64 \
-      ~/.local/share/madwine/proton/
-   ```
-3. **Apply** (repoints `config.proton`, keeps 11-5 as rollback):
-   ```bash
-   ~/.local/bin/madwine-compat-update --version GE-Proton11-12
-   # or just: madwine-compat-update            (uses latest release)
-   ```
-   Verify: `madwine-compat-update --check` → `status: UP TO DATE`.
-4. **Relaunch Madwine.** Confirm the live layer:
+1. **Relaunch Madwine** (it was closed when the switch was applied). Confirm the live layer:
    ```bash
    tr '\0' '\n' < /proc/$(pgrep -f 'proton waitforexitandrun' | head -1)/environ | grep PROTONPATH
    # expect: PROTONPATH=/home/taxin/.local/share/madwine/proton/GE-Proton11-12-x86_64
    ```
    First launch on a newer Proton may upgrade the Wine prefix (slower start).
-5. **Test the bugs:** (a) launcher keyboard — click/type in `madium`; (b) mouse left-click after a
-   purchase button in **fullscreen** Roblox; (c) keyboard after alt-tab.
-6. **Enable the daily timer** (also installs the script to `~/.local/bin`):
+2. **Test the bugs:**
+   - (a) **Launcher keyboard** — click into the `madium` window and type.
+   - (b) **Mouse left-click after a purchase button in fullscreen** Roblox.
+   - (c) **Keyboard after alt-tab** away and back.
+3. If 11-12 did not fix things (or made them worse), **roll back**:
    ```bash
-   cd /tmp/opencode/madwine-repo && ./install.sh
-   systemctl --user list-timers madwine-compat-update.timer
+   ~/.local/bin/madwine-compat-update --version GE-Proton11-5   # or edit "proton" in config.json
    ```
-   (Safe to run any time — it defers while Madwine is live.)
+4. Timer maintenance:
+   ```bash
+   systemctl --user list-timers madwine-compat-update.timer
+   systemctl --user start madwine-compat-update.service   # run now (defers if Madwine is live)
+   ```
 
 ## If the launcher keyboard is still broken after 11-12
 
@@ -121,11 +123,10 @@ Investigate, in order:
 
 ## Continuation prompt for another agent
 
-> Read `/home/taxin/Work/madwine-input-handoff.md`. Madwine (v0.1.22) is on GE-Proton11-5; the goal
-> is to move it to GE-Proton11-12 by repointing `~/.config/madwine/config.json`'s `"proton"` field
-> (never rely on `"reuseSteamProton"`), using the tool in `github.com/taxin-404/madwine`
-> (`~/.local/bin/madwine-compat-update`). GE-Proton11-12 is already downloaded/verified in
-> `~/.cache/madwine-compat-update/` and extracted (unused) at
-> `~/.local/share/Steam/compatibilitytools.d/GE-Proton11-12-x86_64`. Close Madwine fully, move that
-> dir into `~/.local/share/madwine/proton/`, run the updater, relaunch, then verify `PROTONPATH` and
-> test the launcher keyboard + in-fullscreen mouse click.
+> Read `/home/taxin/Work/madwine-input-handoff.md`. State: Madwine (v0.1.22) was switched to
+> **GE-Proton11-12** via `config.json.proton` (never `reuseSteamProton`, which Madwine ignores), and
+> the auto-updater is installed at `~/.local/bin/madwine-compat-update` with a daily systemd user
+> timer (`--check` = UP TO DATE). Remaining: relaunch Madwine, verify
+> `PROTONPATH=.../madwine/proton/GE-Proton11-12-x86_64`, then test (a) the launcher keyboard and
+> (b) mouse left-click after a purchase button in fullscreen Roblox. If still broken, follow the
+> "If the launcher keyboard is still broken after 11-12" section. Rollback: `--version GE-Proton11-5`.
